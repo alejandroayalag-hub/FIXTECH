@@ -3,6 +3,8 @@ set -e
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVER="root@62.238.3.136"
+export RSYNC_RSH="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes"
+ssh() { command ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes "$@"; }
 
 echo "→ Construyendo frontend..."
 cd "$ROOT_DIR/frontend"

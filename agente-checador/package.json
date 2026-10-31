@@ -1,0 +1,17 @@
+{
+  "name": "agente-checador",
+  "version": "1.0.0",
+  "description": "Agente local ZKTeco K30 → Fix Tech Support",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "instalar-servicio": "node servicio.js instalar",
+    "desinstalar-servicio": "node servicio.js desinstalar"
+  },
+  "dependencies": {
+    "node-zklib": "^1.0.6",
+    "axios": "^1.6.0",
+    "dotenv": "^16.0.0",
+    "node-windows": "^1.0.0-beta.8"
+  }
+}

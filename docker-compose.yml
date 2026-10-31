@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fixtech
+      POSTGRES_USER: fixtech_user
+      POSTGRES_PASSWORD: fixtech_pass
+    ports:
+      # ponytail: solo localhost — el backend corre en el mismo host. Cierra Postgres a internet.
+      - "127.0.0.1:5450:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

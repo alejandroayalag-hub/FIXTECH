@@ -10,5 +10,8 @@ router.post('/login', movilLimiter, ctrl.login);
 
 // Todas las rutas siguientes requieren token de empleado
 router.use(authEmpleado);
+router.get('/yo', ctrl.yo);
+router.post('/checadas', ctrl.crearChecada);
+router.get('/avisos', ctrl.avisos);
 
 module.exports = router;

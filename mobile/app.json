@@ -9,13 +9,17 @@
     "android": {
       "package": "mx.serviciosata.checador",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["ACCESS_FINE_LOCATION", "USE_BIOMETRIC", "POST_NOTIFICATIONS"]
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "USE_BIOMETRIC",
+        "POST_NOTIFICATIONS"
+      ]
     },
     "ios": {
       "infoPlist": {
@@ -23,6 +27,16 @@
         "NSFaceIDUsageDescription": "ATA Checador usa tu huella o rostro para confirmar que eres tú."
       }
     },
-    "plugins": ["expo-secure-store", "expo-notifications", "expo-location", "expo-local-authentication"]
+    "plugins": [
+      "expo-secure-store",
+      "expo-notifications",
+      "expo-location",
+      "expo-local-authentication"
+    ],
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    }
   }
 }

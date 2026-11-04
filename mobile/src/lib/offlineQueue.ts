@@ -44,6 +44,11 @@ function conLock<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/** Checadas still waiting to be sent (read-only snapshot). */
+export function checadasEnCola(): Promise<ChecadaPayload[]> {
+  return conLock(readQueue);
+}
+
 export function enqueueChecada(payload: ChecadaPayload): Promise<void> {
   return conLock(async () => {
     const queue = await readQueue();

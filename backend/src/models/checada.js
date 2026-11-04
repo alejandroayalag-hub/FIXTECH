@@ -3,9 +3,10 @@ const pool = require('../db/pool');
 const CheckadaModel = {
   async findByEmpleado(empleadoId, { desde, hasta } = {}) {
     let query = `
-      SELECT c.*, d.nombre AS dispositivo_nombre, d.ubicacion
+      SELECT c.*, c.origen, c.lat, c.lng, c.hora_dudosa,
+             d.nombre AS dispositivo_nombre, d.ubicacion
       FROM checadas c
-      JOIN checador_dispositivos d ON d.id = c.dispositivo_id
+      LEFT JOIN checador_dispositivos d ON d.id = c.dispositivo_id
       WHERE c.empleado_id = $1
     `;
     const params = [empleadoId];

@@ -6,7 +6,11 @@ module.exports = function authMiddleware(req, res, next) {
     return res.status(401).json({ error: 'No autorizado' });
   }
   try {
-    req.user = jwt.verify(header.slice(7), process.env.JWT_SECRET);
+    const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
+    if (payload.role === 'empleado') {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+    req.user = payload;
     next();
   } catch {
     res.status(401).json({ error: 'Token inválido o expirado' });

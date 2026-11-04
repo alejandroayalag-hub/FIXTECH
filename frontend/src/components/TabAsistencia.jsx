@@ -111,7 +111,7 @@ export default function TabAsistencia({ empleadoId }) {
                   {c.dispositivo_nombre}{c.ubicacion ? ` — ${c.ubicacion}` : ''}
                   {c.lat != null && c.lng != null && (
                     <a href={`https://maps.google.com/?q=${c.lat},${c.lng}`} target="_blank" rel="noreferrer"
-                      className="ml-2 text-blue-600 hover:underline">Ver mapa</a>
+                      className={`${c.dispositivo_nombre || c.ubicacion ? 'ml-2 ' : ''}text-blue-600 hover:underline`}>Ver mapa</a>
                   )}
                 </div>
               </div>

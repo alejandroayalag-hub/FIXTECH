@@ -161,6 +161,27 @@ describe('Modelo Empleado', () => {
     });
   });
 
+  describe('create horario', () => {
+    const base = { nombre: 'A', apellido_paterno: 'B', apellido_materno: 'C', fecha_ingreso: '2026-01-01', email: 'a@b.c' };
+
+    it('persiste hora_entrada valida en el INSERT', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+      await Empleado.create({ ...base, hora_entrada: '08:30' });
+      const [query, params] = pool.query.mock.calls[0];
+      expect(query).toContain('hora_entrada');
+      expect(params[params.length - 1]).toBe('08:30');
+    });
+
+    it('con hora vacia no la incluye (aplica el default de la BD)', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+      await Empleado.create({ ...base, hora_entrada: '', hora_salida: '' });
+      const [query, params] = pool.query.mock.calls[0];
+      expect(query).not.toContain('hora_');
+      expect(params).not.toContain('');
+      expect(params.length).toBe(16);
+    });
+  });
+
   describe('update', () => {
     it('debe permitir actualizar el campo estado', async () => {
       const mockUpdated = {

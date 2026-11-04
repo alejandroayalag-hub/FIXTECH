@@ -1,5 +1,9 @@
 const pool = require('../db/pool');
 
+// Horas: solo HH:MM[:SS]; vacío/inválido se ignora (la columna es NOT NULL con default)
+const HORAS = ['hora_entrada', 'hora_salida'];
+const HORA_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+
 const sinPin = ({ pin_hash, ...resto }) => resto;
 
 const EmpleadoModel = {
@@ -30,17 +34,23 @@ const EmpleadoModel = {
       fecha_nacimiento, fecha_ingreso, puesto, departamento,
       telefono, email, direccion, nombre_beneficiario, observaciones, estatus, estado,
     } = data;
+    const cols = [
+      'nombre', 'apellido_paterno', 'apellido_materno', 'curp', 'rfc',
+      'fecha_nacimiento', 'fecha_ingreso', 'puesto', 'departamento',
+      'telefono', 'email', 'direccion', 'nombre_beneficiario', 'observaciones', 'estatus', 'estado',
+    ];
+    const vals = [nombre, apellido_paterno, apellido_materno, curp || null, rfc || null,
+      fecha_nacimiento || null, fecha_ingreso, puesto || null, departamento || null,
+      telefono || null, email, direccion || null,
+      nombre_beneficiario || null, observaciones || null, estatus || 'activo', estado || 'activo'];
+    for (const h of HORAS) {
+      if (HORA_RE.test(data[h] || '')) { cols.push(h); vals.push(data[h]); }
+    }
     const { rows } = await pool.query(
-      `INSERT INTO empleados
-        (nombre, apellido_paterno, apellido_materno, curp, rfc,
-         fecha_nacimiento, fecha_ingreso, puesto, departamento,
-         telefono, email, direccion, nombre_beneficiario, observaciones, estatus, estado)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      `INSERT INTO empleados (${cols.join(', ')})
+       VALUES (${cols.map((_, i) => `$${i + 1}`).join(',')})
        RETURNING *`,
-      [nombre, apellido_paterno, apellido_materno, curp || null, rfc || null,
-       fecha_nacimiento || null, fecha_ingreso, puesto || null, departamento || null,
-       telefono || null, email, direccion || null,
-       nombre_beneficiario || null, observaciones || null, estatus || 'activo', estado || 'activo']
+      vals
     );
     return sinPin(rows[0]);
   },
@@ -55,9 +65,6 @@ const EmpleadoModel = {
       'contacto_emergencia_nombre', 'contacto_emergencia_telefono',
       'hora_entrada', 'hora_salida',
     ];
-    // Horas: solo HH:MM[:SS]; vacío/inválido se ignora (la columna es NOT NULL con default)
-    const HORAS = ['hora_entrada', 'hora_salida'];
-    const HORA_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
     const fields = Object.keys(data).filter(k =>
       EDITABLES.includes(k) && (!HORAS.includes(k) || HORA_RE.test(data[k] || '')));
     if (!fields.length) return this.findById(id);

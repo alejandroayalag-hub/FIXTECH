@@ -8,7 +8,7 @@ export type Session = { token: string; nombre: string; empleadoId?: number };
 export function empleadoIdDeToken(token: string): number | undefined {
   try {
     const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const id = JSON.parse(atob(b64)).empleado_id;
+    const id = JSON.parse(atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, '='))).empleado_id;
     return typeof id === 'number' ? id : undefined;
   } catch {
     return undefined;
@@ -28,6 +28,13 @@ export async function getSession(): Promise<Session | null> {
   } catch {
     return null;
   }
+}
+
+/** After /yo: store the renewed token (if any) and backfill empleadoId; nombre is kept. */
+export async function renovarSesion(yo: { id: number; token?: string }): Promise<void> {
+  const s = await getSession();
+  if (!s) return;
+  await saveSession({ token: yo.token ?? s.token, nombre: s.nombre, empleadoId: yo.id });
 }
 
 export async function clearSession(): Promise<void> {

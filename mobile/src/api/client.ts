@@ -15,6 +15,7 @@ async function request<T>(path: string, options: RequestInit & { token?: string 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   let res: Response;
+  let body: { error?: string };
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       ...init,
@@ -24,11 +25,16 @@ async function request<T>(path: string, options: RequestInit & { token?: string 
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init.headers || {}),
       },
-        });
+    });
+    // The timeout also covers reading the body: a stalled body is aborted and surfaces as a
+    // network error (never as an empty success); a non-JSON body is just empty.
+    body = await res.json().catch((err: unknown) => {
+      if (ctrl.signal.aborted) throw err;
+      return {};
+    });
   } finally {
     clearTimeout(timer);
   }
-  const body = await res.json().catch(() => ({}));
   // 200 (duplicate client_id) and 201 (new) are both success.
   if (!res.ok) throw new ApiError(body.error || `request failed with status ${res.status}`, res.status);
   return body as T;

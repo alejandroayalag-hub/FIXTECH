@@ -39,7 +39,8 @@ export async function checar(tipo: 'entrada' | 'salida'): Promise<{ enviada: boo
     ...(await ubicacion()),
   };
   try {
-    await apiClient.post('/api/movil/checadas', payload, (await getSession())?.token);
+    // enviado_en = reloj del celular al momento del POST: el servidor corrige el desfase del reloj.
+    await apiClient.post('/api/movil/checadas', { ...payload, enviado_en: new Date().toISOString() }, (await getSession())?.token);
     return { enviada: true };
   } catch (err) {
     if (!esReintentable(err)) throw err;

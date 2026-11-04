@@ -100,3 +100,15 @@ test('422 -> rethrown, not queued', async () => {
   await expect(checar('entrada')).rejects.toThrow('inválida');
   expect(enqueueChecada).not.toHaveBeenCalled();
 });
+
+test('sends enviado_en (phone clock at POST time) but never queues it', async () => {
+  const antes = Date.now();
+  await checar('entrada');
+  const enviado = post.mock.calls[0][1].enviado_en;
+  expect(typeof enviado).toBe('string');
+  expect(new Date(enviado).getTime()).toBeGreaterThanOrEqual(antes);
+
+  post.mockRejectedValue(new TypeError('Network request failed'));
+  await checar('salida');
+  expect((enqueueChecada as jest.Mock).mock.calls[0][0]).not.toHaveProperty('enviado_en');
+});

@@ -6,7 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Notifications from 'expo-notifications';
 import { apiClient } from '../api/client';
-import { clearSession, getSession } from '../session';
+import { clearSession, getSession, renovarSesion } from '../session';
 import { checar } from '../lib/checar';
 import { checadasEnCola, flushQueue } from '../lib/offlineQueue';
 import { syncReminders } from '../lib/reminders';
@@ -56,9 +56,10 @@ export default function InicioScreen({ navigation, onLogout }: Props) {
     if (refrescando.current) return;
     refrescando.current = true;
     try {
-      const token = (await getSession())?.token;
       const traerYo = async () => {
-        const y = await apiClient.get<Yo>('/api/movil/yo', token);
+        const { token: nuevo, ...y } = await apiClient.get<Yo & { token?: string }>('/api/movil/yo', (await getSession())?.token);
+        // Renewed token + empleadoId backfill (sessions from before empleadoId was stored).
+        await renovarSesion({ id: y.id, token: nuevo });
         await guardarYo(y);
         return y;
       };
@@ -67,7 +68,9 @@ export default function InicioScreen({ navigation, onLogout }: Props) {
       try {
         actual = await traerYo();
       } catch (err) {
-        if ((err as { status?: number }).status === 401) {
+        // 401 = token expired/revoked (PIN regenerated), 403 = employee inactive: log out, keep the queue.
+        const status = (err as { status?: number }).status;
+        if (status === 401 || status === 403) {
           await cerrarPorSesionExpirada();
           return;
         }

@@ -43,8 +43,26 @@ test('flushQueue sends every queued item to /api/movil/checadas and empties the 
   const result = await flushQueue();
 
   expect(result).toEqual({ sentAny: true, remaining: 0, droppedCount: 0 });
-  expect(apiClient.post).toHaveBeenCalledWith('/api/movil/checadas', payload, 'fake-token');
+  expect(apiClient.post).toHaveBeenCalledWith('/api/movil/checadas', { ...payload, enviado_en: expect.any(String) }, 'fake-token');
   expect(JSON.parse(store[KEY])).toEqual([]);
+});
+
+test('flushQueue stamps enviado_en at each send attempt and never stores it', async () => {
+  jest.useFakeTimers({ now: new Date('2026-11-04T16:00:00.000Z'), doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] });
+  try {
+    await enqueueChecada(payload);
+    (apiClient.post as jest.Mock).mockRejectedValueOnce(new TypeError('network error'));
+    await flushQueue();
+    expect((apiClient.post as jest.Mock).mock.calls[0][1].enviado_en).toBe('2026-11-04T16:00:00.000Z');
+    expect(JSON.parse(store[KEY])).toEqual([payload]);
+
+    jest.setSystemTime(new Date('2026-11-04T18:30:00.000Z'));
+    (apiClient.post as jest.Mock).mockResolvedValueOnce({});
+    await flushQueue();
+    expect((apiClient.post as jest.Mock).mock.calls[1][1]).toEqual({ ...payload, enviado_en: '2026-11-04T18:30:00.000Z' });
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test('flushQueue keeps an item queued on network error', async () => {
@@ -138,7 +156,7 @@ describe('multi-employee queue', () => {
 
     expect(r).toEqual({ sentAny: true, remaining: 0, droppedCount: 0 });
     expect(apiClient.post).toHaveBeenCalledTimes(1);
-    expect(apiClient.post).toHaveBeenCalledWith('/api/movil/checadas', payload, 'fake-token');
+    expect(apiClient.post).toHaveBeenCalledWith('/api/movil/checadas', { ...payload, enviado_en: expect.any(String) }, 'fake-token');
     expect(JSON.parse(store[KEY])).toEqual([{ ...p2, empleado_id: 2 }]);
     expect(await checadasEnCola()).toEqual([]);
   });
@@ -149,5 +167,19 @@ describe('multi-employee queue', () => {
     mockEmpleado = 1;
     await enqueueChecada(payload);
     expect(await checadasEnCola()).toEqual([{ ...payload, empleado_id: 1 }]);
+  });
+
+  test('while the employee is unknown, only owner-less entries are listed and sent', async () => {
+    mockEmpleado = 2;
+    await enqueueChecada(p2);
+    mockEmpleado = undefined;
+    await enqueueChecada(payload);
+    expect(await checadasEnCola()).toEqual([payload]);
+
+    (apiClient.post as jest.Mock).mockResolvedValue({});
+    expect(await flushQueue()).toEqual({ sentAny: true, remaining: 0, droppedCount: 0 });
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+    expect((apiClient.post as jest.Mock).mock.calls[0][1].client_id).toBe(payload.client_id);
+    expect(JSON.parse(store[KEY])).toEqual([{ ...p2, empleado_id: 2 }]);
   });
 });

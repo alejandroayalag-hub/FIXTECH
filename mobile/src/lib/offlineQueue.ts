@@ -47,7 +47,9 @@ function conLock<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-const esDe = (e: Entrada, id?: number) => id === undefined || e.empleado_id === undefined || e.empleado_id === id;
+// Owner-less (legacy) entries belong to whoever is logged in; while the employee is unknown,
+// only owner-less entries match (never other employees' entries).
+const esDe = (e: Entrada, id?: number) => e.empleado_id === undefined || e.empleado_id === id;
 
 /** Checadas of the current employee still waiting to be sent (read-only snapshot). */
 export function checadasEnCola(): Promise<ChecadaPayload[]> {
@@ -95,7 +97,8 @@ async function flushQueueSinLock(): Promise<FlushResult> {
   for (const entrada of queue) {
     const { empleado_id: _owner, ...payload } = entrada;
     try {
-      await apiClient.post('/api/movil/checadas', payload, token);
+      // enviado_en is stamped at each attempt (never stored) so the server can correct the phone clock.
+      await apiClient.post('/api/movil/checadas', { ...payload, enviado_en: new Date().toISOString() }, token);
       sentAny = true;
     } catch (err) {
       if (esReintentable(err)) {

@@ -114,7 +114,7 @@ test('an enqueue made while a flush POST is pending is not lost', async () => {
   const other = { ...payload, client_id: '33333333-3333-4333-8333-333333333333' };
 
   const flushing = flushQueue();
-  await new Promise((r) => setImmediate(r)); // let the flush reach the pending POST
+  await new Promise<void>((r) => setImmediate(() => r())); // let the flush reach the pending POST
   const enqueuing = enqueueChecada(other);
   release();
   await Promise.all([flushing, enqueuing]);

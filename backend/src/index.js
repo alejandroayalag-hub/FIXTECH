@@ -30,6 +30,7 @@ app.use('/api/auth', loginLimiter, require('./routes/auth'));
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 // Rutas protegidas
+app.use('/api/movil', require('./routes/movil'));
 app.use('/api/empleados', authMiddleware, require('./routes/empleados'));
 app.use('/api/documentos', authMiddleware, require('./routes/documentos'));
 app.use('/api/contratos', authMiddleware, require('./routes/contratos'));

@@ -7,6 +7,7 @@ router.get('/:id', ctrl.getOne);
 router.post('/', ctrl.create);
 router.put('/:id', ctrl.update);
 router.delete('/:id', ctrl.remove);
+router.post('/:id/pin', ctrl.generarPin);
 router.post('/:id/foto', upload.single('foto'), ctrl.uploadFoto);
 
 module.exports = router;

@@ -1,4 +1,6 @@
 const fs = require('fs');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const EmpleadoModel = require('../models/empleado');
 
 exports.getAll = async (req, res, next) => {
@@ -53,5 +55,15 @@ exports.uploadFoto = async (req, res, next) => {
     if (empleado.foto && fs.existsSync(empleado.foto)) fs.unlinkSync(empleado.foto);
     const updated = await EmpleadoModel.update(req.params.id, { foto: req.file.path });
     res.json(updated);
+  } catch (err) { next(err); }
+};
+
+exports.generarPin = async (req, res, next) => {
+  try {
+    const pin = String(crypto.randomInt(0, 1e6)).padStart(6, '0');
+    const hash = await bcrypt.hash(pin, 10);
+    const ok = await EmpleadoModel.setPin(req.params.id, hash);
+    if (!ok) return res.status(404).json({ error: 'Empleado no encontrado' });
+    res.json({ pin });
   } catch (err) { next(err); }
 };

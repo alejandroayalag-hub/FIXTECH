@@ -1,5 +1,7 @@
 const pool = require('../db/pool');
 
+const sinPin = ({ pin_hash, ...resto }) => resto;
+
 const EmpleadoModel = {
   async findAll(filters = {}) {
     const { estado } = filters;
@@ -14,12 +16,12 @@ const EmpleadoModel = {
     query += ' ORDER BY apellido_paterno, nombre';
 
     const { rows } = await pool.query(query, params);
-    return rows;
+    return rows.map(sinPin);
   },
 
   async findById(id) {
     const { rows } = await pool.query('SELECT * FROM empleados WHERE id = $1', [id]);
-    return rows[0] || null;
+    return rows[0] ? sinPin(rows[0]) : null;
   },
 
   async create(data) {
@@ -40,7 +42,7 @@ const EmpleadoModel = {
        telefono || null, email, direccion || null,
        nombre_beneficiario || null, observaciones || null, estatus || 'activo', estado || 'activo']
     );
-    return rows[0];
+    return sinPin(rows[0]);
   },
 
   async update(id, data) {
@@ -60,7 +62,15 @@ const EmpleadoModel = {
       `UPDATE empleados SET ${set}, updated_at = NOW() WHERE id = $${fields.length + 1} RETURNING *`,
       [...values, id]
     );
-    return rows[0] || null;
+    return rows[0] ? sinPin(rows[0]) : null;
+  },
+
+  async setPin(id, pinHash) {
+    const { rowCount } = await pool.query(
+      'UPDATE empleados SET pin_hash = $1, updated_at = NOW() WHERE id = $2',
+      [pinHash, id]
+    );
+    return rowCount > 0;
   },
 
   async delete(id) {

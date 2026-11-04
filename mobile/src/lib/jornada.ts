@@ -19,13 +19,17 @@ export function diaMx(d: Date): string {
  */
 export function siguienteTipo(
   ultimaHoy: Ultima | null,
-  cola: { tipo: Tipo; timestamp_dispositivo: string }[],
+  cola: { tipo: Tipo; timestamp_dispositivo: string; empleado_id?: number }[],
   ahora: Date = new Date(),
+  empleadoId?: number,
 ): { tipo: Tipo; ultima: Ultima | null } {
   const hoy = diaMx(ahora);
   const candidatas: Ultima[] = [];
   if (ultimaHoy) candidatas.push(ultimaHoy);
-  for (const c of cola) candidatas.push({ tipo: c.tipo, timestamp: c.timestamp_dispositivo });
+  for (const c of cola) {
+    if (empleadoId !== undefined && c.empleado_id !== undefined && c.empleado_id !== empleadoId) continue;
+    candidatas.push({ tipo: c.tipo, timestamp: c.timestamp_dispositivo });
+  }
   let ultima: Ultima | null = null;
   let t = -Infinity;
   for (const c of candidatas) {

@@ -13,6 +13,9 @@ export type ChecadaPayload = {
   precision_m: number | null;
 };
 
+/** Stored entry: the payload plus the owner (never sent to the server). Legacy entries lack it. */
+type Entrada = ChecadaPayload & { empleado_id?: number };
+
 export type FlushResult = {
   sentAny: boolean;
   remaining: number;
@@ -20,7 +23,7 @@ export type FlushResult = {
   droppedCount: number;
 };
 
-async function readQueue(): Promise<ChecadaPayload[]> {
+async function readQueue(): Promise<Entrada[]> {
   const raw = await SecureStore.getItemAsync(QUEUE_KEY);
   if (!raw) return [];
   try {
@@ -32,7 +35,7 @@ async function readQueue(): Promise<ChecadaPayload[]> {
   }
 }
 
-async function writeQueue(queue: ChecadaPayload[]): Promise<void> {
+async function writeQueue(queue: Entrada[]): Promise<void> {
   await SecureStore.setItemAsync(QUEUE_KEY, JSON.stringify(queue));
 }
 
@@ -44,15 +47,21 @@ function conLock<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-/** Checadas still waiting to be sent (read-only snapshot). */
+const esDe = (e: Entrada, id?: number) => id === undefined || e.empleado_id === undefined || e.empleado_id === id;
+
+/** Checadas of the current employee still waiting to be sent (read-only snapshot). */
 export function checadasEnCola(): Promise<ChecadaPayload[]> {
-  return conLock(readQueue);
+  return conLock(async () => {
+    const id = (await getSession())?.empleadoId;
+    return (await readQueue()).filter((e) => esDe(e, id));
+  });
 }
 
 export function enqueueChecada(payload: ChecadaPayload): Promise<void> {
   return conLock(async () => {
+    const empleado_id = (await getSession())?.empleadoId;
     const queue = await readQueue();
-    queue.push(payload);
+    queue.push(empleado_id === undefined ? payload : { ...payload, empleado_id });
     await writeQueue(queue);
   });
 }
@@ -71,21 +80,26 @@ export function flushQueue(): Promise<FlushResult> {
 }
 
 async function flushQueueSinLock(): Promise<FlushResult> {
-  const queue = await readQueue();
+  const all = await readQueue();
+  const session = await getSession();
+  const token = session?.token;
+  // Entries of other employees stay untouched: they must never go out under this token.
+  const queue = all.filter((e) => esDe(e, session?.empleadoId));
+  const ajenas = all.filter((e) => !queue.includes(e));
   if (queue.length === 0) return { sentAny: false, remaining: 0, droppedCount: 0 };
 
-  const token = (await getSession())?.token;
-  const stillQueued: ChecadaPayload[] = [];
+  const stillQueued: Entrada[] = [];
   let sentAny = false;
   let droppedCount = 0;
 
-  for (const payload of queue) {
+  for (const entrada of queue) {
+    const { empleado_id: _owner, ...payload } = entrada;
     try {
       await apiClient.post('/api/movil/checadas', payload, token);
       sentAny = true;
     } catch (err) {
       if (esReintentable(err)) {
-        stillQueued.push(payload);
+        stillQueued.push(entrada);
       } else {
         droppedCount += 1;
         console.warn('ATA Checador: descartando checada rechazada por el servidor', {
@@ -97,6 +111,6 @@ async function flushQueueSinLock(): Promise<FlushResult> {
     }
   }
 
-  await writeQueue(stillQueued);
+  await writeQueue([...ajenas, ...stillQueued]);
   return { sentAny, remaining: stillQueued.length, droppedCount };
 }

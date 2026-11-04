@@ -6,12 +6,7 @@ import { apiClient } from '../api/client';
 import { getSession } from '../session';
 import { fraseAlAzar } from '../lib/frases';
 import { colors } from '../theme';
-
-export type RootStackParams = {
-  Login: undefined;
-  Inicio: undefined;
-  Confirmacion: { tipo: 'entrada' | 'salida'; enviada: boolean; nombre: string };
-};
+import type { RootStackParams } from '../navigation';
 
 type Aviso = { id: number; titulo: string; mensaje: string };
 

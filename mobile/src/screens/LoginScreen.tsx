@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiClient } from '../api/client';
-import { saveSession } from '../session';
+import { empleadoIdDeToken, saveSession } from '../session';
 import { colors } from '../theme';
 
 type Props = { onLogin: () => void };
@@ -26,7 +26,7 @@ export default function LoginScreen({ onLogin }: Props) {
         empleado: empleado.trim(),
         pin,
       });
-      await saveSession({ token: r.token, nombre: r.nombre });
+      await saveSession({ token: r.token, nombre: r.nombre, empleadoId: empleadoIdDeToken(r.token) });
       onLogin();
     } catch (err) {
       const status = (err as { status?: number }).status;

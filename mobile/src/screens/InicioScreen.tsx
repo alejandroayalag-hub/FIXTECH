@@ -12,7 +12,7 @@ import { checadasEnCola, flushQueue } from '../lib/offlineQueue';
 import { syncReminders } from '../lib/reminders';
 import { borrarYo, guardarYo, leerYo, siguienteTipo, type Yo } from '../lib/jornada';
 import { colors } from '../theme';
-import type { RootStackParams } from './ConfirmacionScreen';
+import type { RootStackParams } from '../navigation';
 
 type Props = NativeStackScreenProps<RootStackParams, 'Inicio'> & { onLogout: () => void };
 
@@ -21,7 +21,7 @@ let flushing = false;
 
 const SIN_BLOQUEO =
   'Tu celular no tiene huella ni bloqueo de pantalla configurado. Configura un PIN, patrón o huella en los Ajustes del celular y vuelve a intentarlo.';
-const CANCELADO = ['user_cancel', 'system_cancel', 'app_cancel'];
+const CANCELADO = ['user_cancel', 'user_fallback', 'system_cancel', 'app_cancel'];
 
 function hora(ts: string): string {
   return new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit' }).format(new Date(ts));
@@ -30,6 +30,7 @@ function hora(ts: string): string {
 export default function InicioScreen({ navigation, onLogout }: Props) {
   const [yo, setYo] = useState<Yo | null>(null);
   const [cola, setCola] = useState<Awaited<ReturnType<typeof checadasEnCola>>>([]);
+  const [recien, setRecien] = useState<{ tipo: 'entrada' | 'salida'; timestamp_dispositivo: string } | null>(null);
   const [sinRed, setSinRed] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [ocupado, setOcupado] = useState(false);
@@ -65,7 +66,6 @@ export default function InicioScreen({ navigation, onLogout }: Props) {
       let online = true;
       try {
         actual = await traerYo();
-        await syncReminders(actual);
       } catch (err) {
         if ((err as { status?: number }).status === 401) {
           await cerrarPorSesionExpirada();
@@ -74,6 +74,7 @@ export default function InicioScreen({ navigation, onLogout }: Props) {
         online = false;
         actual = await leerYo();
       }
+      if (online && actual) await syncReminders(actual).catch(() => {}); // best effort, never marks offline
       if (!vivo.current) return;
       setYo(actual);
       setSinRed(!online);
@@ -94,7 +95,10 @@ export default function InicioScreen({ navigation, onLogout }: Props) {
         }
       }
       const pendientes = await checadasEnCola();
-      if (vivo.current) setCola(pendientes);
+      if (vivo.current) {
+        setCola(pendientes);
+        setRecien(null); // server/queue now reflect it
+      }
     } finally {
       refrescando.current = false;
       if (vivo.current) setCargando(false);
@@ -114,7 +118,7 @@ export default function InicioScreen({ navigation, onLogout }: Props) {
     return () => sub.remove();
   }, [refrescar]);
 
-  const { tipo, ultima } = siguienteTipo(yo?.ultima_hoy ?? null, cola);
+  const { tipo, ultima } = siguienteTipo(yo?.ultima_hoy ?? null, recien ? [...cola, recien] : cola);
 
   async function pulsar() {
     if (ocupado) return;
@@ -133,6 +137,8 @@ export default function InicioScreen({ navigation, onLogout }: Props) {
         return;
       }
       const { enviada } = await checar(tipo);
+      // Until the refresh completes, the button must already show the next type.
+      setRecien({ tipo, timestamp_dispositivo: new Date().toISOString() });
       navigation.navigate('Confirmacion', { tipo, enviada, nombre: yo?.nombre ?? '' });
     } catch (err) {
       setError((err as Error).message || 'No se pudo registrar la checada.');

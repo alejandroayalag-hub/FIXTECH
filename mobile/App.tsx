@@ -7,7 +7,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { getSession } from './src/session';
 import LoginScreen from './src/screens/LoginScreen';
 import InicioScreen from './src/screens/InicioScreen';
-import ConfirmacionScreen, { type RootStackParams } from './src/screens/ConfirmacionScreen';
+import ConfirmacionScreen from './src/screens/ConfirmacionScreen';
+import type { RootStackParams } from './src/navigation';
 import { colors } from './src/theme';
 
 const Stack = createNativeStackNavigator<RootStackParams>();

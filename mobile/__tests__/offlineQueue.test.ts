@@ -1,10 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
-import { enqueueChecada, flushQueue } from '../src/lib/offlineQueue';
+import { checadasEnCola, enqueueChecada, flushQueue } from '../src/lib/offlineQueue';
 import { apiClient } from '../src/api/client';
 
 jest.mock('expo-secure-store');
 jest.mock('../src/api/client');
-jest.mock('../src/session', () => ({ getSession: () => Promise.resolve({ token: 'fake-token', nombre: 'Ana' }) }));
+let mockEmpleado: number | undefined;
+jest.mock('../src/session', () => ({ getSession: () => Promise.resolve({ token: 'fake-token', nombre: 'Ana', empleadoId: mockEmpleado }) }));
 
 const payload = {
   client_id: '11111111-1111-4111-8111-111111111111',
@@ -21,6 +22,7 @@ let store: Record<string, string> = {};
 
 beforeEach(() => {
   store = {};
+  mockEmpleado = undefined;
   (SecureStore.getItemAsync as jest.Mock).mockImplementation((key: string) => Promise.resolve(store[key] ?? null));
   (SecureStore.setItemAsync as jest.Mock).mockImplementation((key: string, value: string) => {
     store[key] = value;
@@ -120,4 +122,32 @@ test('an enqueue made while a flush POST is pending is not lost', async () => {
   await Promise.all([flushing, enqueuing]);
 
   expect(JSON.parse(store[KEY])).toEqual([other]);
+});
+
+describe('multi-employee queue', () => {
+  const p2 = { ...payload, client_id: '22222222-2222-4222-8222-222222222222' };
+
+  test('flush only sends the logged-in employee entries and keeps the others untouched', async () => {
+    mockEmpleado = 2;
+    await enqueueChecada(p2);
+    mockEmpleado = 1;
+    await enqueueChecada(payload);
+    (apiClient.post as jest.Mock).mockResolvedValue({});
+
+    const r = await flushQueue();
+
+    expect(r).toEqual({ sentAny: true, remaining: 0, droppedCount: 0 });
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+    expect(apiClient.post).toHaveBeenCalledWith('/api/movil/checadas', payload, 'fake-token');
+    expect(JSON.parse(store[KEY])).toEqual([{ ...p2, empleado_id: 2 }]);
+    expect(await checadasEnCola()).toEqual([]);
+  });
+
+  test('checadasEnCola only lists the current employee entries', async () => {
+    mockEmpleado = 2;
+    await enqueueChecada(p2);
+    mockEmpleado = 1;
+    await enqueueChecada(payload);
+    expect(await checadasEnCola()).toEqual([{ ...payload, empleado_id: 1 }]);
+  });
 });

@@ -24,4 +24,9 @@ describe('siguienteTipo', () => {
     const tarde = new Date('2026-11-05T02:00:00Z');
     expect(siguienteTipo(ent, [], tarde).tipo).toBe('salida');
   });
+  it('ignora entradas de otro empleado', () => {
+    const cola = [{ tipo: 'entrada' as const, timestamp_dispositivo: '2026-11-04T19:00:00Z', empleado_id: 2 }];
+    expect(siguienteTipo(null, cola, ahora, 1).tipo).toBe('entrada');
+    expect(siguienteTipo(null, cola, ahora, 2).tipo).toBe('salida');
+  });
 });

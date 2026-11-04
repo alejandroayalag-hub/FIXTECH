@@ -88,3 +88,15 @@ test('each call generates a distinct client_id', async () => {
   await checar('entrada');
   expect(post.mock.calls[0][1].client_id).not.toBe(post.mock.calls[1][1].client_id);
 });
+
+test('401 -> queued, enviada false (token may be renewed later)', async () => {
+  post.mockRejectedValue(Object.assign(new Error('no autorizado'), { status: 401 }));
+  expect(await checar('entrada')).toEqual({ enviada: false });
+  expect(enqueueChecada).toHaveBeenCalledTimes(1);
+});
+
+test('422 -> rethrown, not queued', async () => {
+  post.mockRejectedValue(Object.assign(new Error('inválida'), { status: 422 }));
+  await expect(checar('entrada')).rejects.toThrow('inválida');
+  expect(enqueueChecada).not.toHaveBeenCalled();
+});

@@ -96,3 +96,28 @@ test('flushQueue treats a corrupted stored queue as empty instead of throwing', 
   expect(warn).toHaveBeenCalled();
   warn.mockRestore();
 });
+
+test('flushQueue keeps an item rejected with 401/403/408/429 (token may be renewed later)', async () => {
+  for (const status of [401, 403, 408, 429]) {
+    store = {};
+    await enqueueChecada(payload);
+    (apiClient.post as jest.Mock).mockRejectedValue(rechazo(status));
+    expect(await flushQueue()).toEqual({ sentAny: false, remaining: 1, droppedCount: 0 });
+    expect(JSON.parse(store[KEY])).toEqual([payload]);
+  }
+});
+
+test('an enqueue made while a flush POST is pending is not lost', async () => {
+  await enqueueChecada(payload);
+  let release!: () => void;
+  (apiClient.post as jest.Mock).mockReturnValue(new Promise<void>((r) => (release = () => r())));
+  const other = { ...payload, client_id: '33333333-3333-4333-8333-333333333333' };
+
+  const flushing = flushQueue();
+  await new Promise((r) => setImmediate(r)); // let the flush reach the pending POST
+  const enqueuing = enqueueChecada(other);
+  release();
+  await Promise.all([flushing, enqueuing]);
+
+  expect(JSON.parse(store[KEY])).toEqual([other]);
+});

@@ -1,5 +1,7 @@
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://rh.serviciosata.com';
 
+const TIMEOUT_MS = 15000;
+
 // Server answered with a non-2xx status. Network failures surface as TypeError from fetch.
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -9,14 +11,23 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, options: RequestInit & { token?: string } = {}): Promise<T> {
   const { token, ...init } = options;
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers || {}),
-    },
-  });
+  // A hung connection aborts and surfaces as a network error (so the checada is queued).
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      signal: ctrl.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init.headers || {}),
+      },
+        });
+  } finally {
+    clearTimeout(timer);
+  }
   const body = await res.json().catch(() => ({}));
   // 200 (duplicate client_id) and 201 (new) are both success.
   if (!res.ok) throw new ApiError(body.error || `request failed with status ${res.status}`, res.status);

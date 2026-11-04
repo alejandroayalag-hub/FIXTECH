@@ -36,19 +36,36 @@ async function writeQueue(queue: ChecadaPayload[]): Promise<void> {
   await SecureStore.setItemAsync(QUEUE_KEY, JSON.stringify(queue));
 }
 
-export async function enqueueChecada(payload: ChecadaPayload): Promise<void> {
-  const queue = await readQueue();
-  queue.push(payload);
-  await writeQueue(queue);
+// Serializes every read-modify-write of the queue so an enqueue during a flush is never lost.
+let lock: Promise<unknown> = Promise.resolve();
+function conLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = lock.then(fn, fn);
+  lock = run.catch(() => {});
+  return run;
 }
 
-/** Network errors (TypeError) and 5xx are retryable; any 4xx is final. */
+export function enqueueChecada(payload: ChecadaPayload): Promise<void> {
+  return conLock(async () => {
+    const queue = await readQueue();
+    queue.push(payload);
+    await writeQueue(queue);
+  });
+}
+
+// Statuses that may succeed later (expired token, timeout, throttling) are kept, not dropped.
+const REINTENTABLES = [401, 403, 408, 429];
+
+/** Network errors, 5xx and 401/403/408/429 are retryable; any other 4xx is final. */
 export function esReintentable(err: unknown): boolean {
   const status = (err as { status?: number }).status;
-  return typeof status !== 'number' || status >= 500;
+  return typeof status !== 'number' || status >= 500 || REINTENTABLES.includes(status);
 }
 
-export async function flushQueue(): Promise<FlushResult> {
+export function flushQueue(): Promise<FlushResult> {
+  return conLock(flushQueueSinLock);
+}
+
+async function flushQueueSinLock(): Promise<FlushResult> {
   const queue = await readQueue();
   if (queue.length === 0) return { sentAny: false, remaining: 0, droppedCount: 0 };
 

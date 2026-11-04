@@ -20,7 +20,7 @@ const auth = (r, tok = panel) => r.set('Authorization', `Bearer ${tok}`);
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const EMPLEADOS = [{ id: 1, nombre: 'Ana', apellido_paterno: 'López', hora_entrada: '09:00:00', dias: [1, 2, 3, 4, 5] }];
-const CHECADAS = [{ empleado_id: 1, timestamp: new Date('2026-11-02T15:20:00Z'), tipo: 'entrada' }]; // 09:20 México
+const CHECADAS = [{ empleado_id: 1, timestamp: new Date('2026-11-02T15:20:00Z'), tipo: 'entrada', hora_dudosa: false }]; // 09:20 México
 
 const mockConsultas = () => {
   pool.query
@@ -67,7 +67,7 @@ describe('/api/reportes/asistencia', () => {
     const r = await auth(request(app).get('/api/reportes/asistencia?desde=2026-11-02&hasta=2026-11-02'));
     expect(r.status).toBe(200);
     expect(r.body).toEqual([
-      { empleado_id: 1, nombre: 'Ana López', dias_trabajados: 1, retardos: 1, faltas: 0 },
+      { empleado_id: 1, nombre: 'Ana López', dias_trabajados: 1, retardos: 1, faltas: 0, checadas_dudosas: 0 },
     ]);
   });
 
@@ -89,6 +89,7 @@ describe('/api/reportes/asistencia', () => {
     expect(sql).toMatch(/timestamp < \(\(\$2::date \+ 1\)::timestamp AT TIME ZONE 'America\/Mexico_City'\)/);
     expect(params.slice(0, 2)).toEqual(['2026-11-02', '2026-11-06']);
     expect(params[2]).toEqual([1]);
+    expect(sql).toMatch(/hora_dudosa/);
   });
 
   it('sin empleados -> [] y no consulta checadas', async () => {
@@ -99,8 +100,10 @@ describe('/api/reportes/asistencia', () => {
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
-  it('.xlsx no queda sombreado por /asistencia y entrega el archivo', async () => {
-    mockConsultas();
+  it('.xlsx no queda sombreado por /asistencia y entrega el archivo (con checadas_dudosas)', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: EMPLEADOS })
+      .mockResolvedValueOnce({ rows: [{ ...CHECADAS[0], hora_dudosa: true }] });
     const r = await auth(request(app).get('/api/reportes/asistencia.xlsx?desde=2026-11-02&hasta=2026-11-02'))
       .buffer(true).parse(binario);
     expect(r.status).toBe(200);
@@ -110,7 +113,53 @@ describe('/api/reportes/asistencia', () => {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(r.body);
     const ws = wb.worksheets[0];
-    expect(ws.getRow(1).values.slice(1)).toEqual(['empleado', 'nombre', 'dias_trabajados', 'retardos', 'faltas']);
-    expect(ws.getRow(2).values.slice(1)).toEqual([1, 'Ana López', 1, 1, 0]);
+    expect(ws.getRow(1).values.slice(1)).toEqual(['empleado', 'nombre', 'dias_trabajados', 'retardos', 'faltas', 'checadas_dudosas']);
+    expect(ws.getRow(2).values.slice(1)).toEqual([1, 'Ana López', 1, 1, 0, 1]);
+  });
+});
+
+describe('rango por empleado: ingreso y alta en el checador', () => {
+  // Rango dom 1 – vie 6 nov 2026 (L–V: 2..6). "Hoy" fijo después del rango.
+  beforeEach(() => {
+    jest.resetAllMocks();
+    jest.useFakeTimers({ now: new Date('2026-11-30T18:00:00Z'), doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'queueMicrotask'] });
+  });
+  afterEach(() => jest.useRealTimers());
+
+  const BASE = { id: 1, nombre: 'Ana', apellido_paterno: 'López', hora_entrada: '09:00:00', dias: [1, 2, 3, 4, 5],
+    fecha_ingreso: '2020-01-01', pin_generado_en: new Date('2026-01-01T15:00:00Z'), reloj_desde: null };
+  const reporte = async (emp) => {
+    pool.query.mockResolvedValueOnce({ rows: [{ ...BASE, ...emp }] }).mockResolvedValueOnce({ rows: [] });
+    const r = await auth(request(app).get('/api/reportes/asistencia?desde=2026-11-01&hasta=2026-11-06'));
+    expect(r.status).toBe(200);
+    return r.body[0];
+  };
+
+  it('consulta ingreso como texto, fecha del PIN y primer mapeo del reloj', async () => {
+    await reporte({});
+    const sql = pool.query.mock.calls[0][0];
+    expect(sql).toMatch(/fecha_ingreso::text/);
+    expect(sql).toMatch(/pin_generado_en/);
+    expect(sql).toMatch(/MIN\(ce\.created_at\)/);
+  });
+  it('sin restricciones previas -> 5 faltas', async () => {
+    expect((await reporte({})).faltas).toBe(5);
+  });
+  it('ingresó el 2026-11-03 -> el 2 no es falta', async () => {
+    expect((await reporte({ fecha_ingreso: '2026-11-03' })).faltas).toBe(4);
+  });
+  it('PIN generado el 4 (21:00 México = 5 UTC) -> 2 y 3 no son faltas', async () => {
+    expect((await reporte({ pin_generado_en: new Date('2026-11-05T03:00:00Z') })).faltas).toBe(3);
+  });
+  it('mapeo del reloj anterior al PIN -> gana la fecha del reloj', async () => {
+    const r = await reporte({ pin_generado_en: new Date('2026-11-05T16:00:00Z'), reloj_desde: new Date('2026-11-03T16:00:00Z') });
+    expect(r.faltas).toBe(4);
+  });
+  it('solo reloj (sin PIN) -> desde el mapeo', async () => {
+    const r = await reporte({ pin_generado_en: null, reloj_desde: new Date('2026-11-06T16:00:00Z') });
+    expect(r.faltas).toBe(1);
+  });
+  it('PIN legado sin fecha y sin reloj -> sin restricción', async () => {
+    expect((await reporte({ pin_generado_en: null, reloj_desde: null })).faltas).toBe(5);
   });
 });

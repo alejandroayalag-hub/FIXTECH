@@ -20,34 +20,46 @@ function diasDelRango(desde, hasta, hoy) {
   return dias;
 }
 
+// empleados[i].desde_efectivo ('YYYY-MM-DD', opcional): primer día que cuenta para ese empleado
+// (ingreso / alta en el checador); antes de él no hay faltas, entradas ni dudosas.
 function calcularAsistencia({ empleados, checadas, desde, hasta, hoy }) {
   // primera entrada por empleado y día México: Map<empleado_id, Map<fecha, Date>>
   const entradas = new Map();
+  // fechas México de las checadas con hora dudosa: Map<empleado_id, fecha[]>
+  const dudosas = new Map();
   for (const c of checadas) {
-    if (!TIPOS_ENTRADA.has(c.tipo)) continue;
     const ts = new Date(c.timestamp);
+    const fecha = fechaMx(ts);
+    if (c.hora_dudosa) {
+      if (!dudosas.has(c.empleado_id)) dudosas.set(c.empleado_id, []);
+      dudosas.get(c.empleado_id).push(fecha);
+    }
+    if (!TIPOS_ENTRADA.has(c.tipo)) continue;
     if (!entradas.has(c.empleado_id)) entradas.set(c.empleado_id, new Map());
     const porDia = entradas.get(c.empleado_id);
-    const fecha = fechaMx(ts);
     if (!porDia.has(fecha) || ts < porDia.get(fecha)) porDia.set(fecha, ts);
   }
 
   const rango = diasDelRango(desde, hasta, hoy);
+  const fin = rango.length ? rango[rango.length - 1].fecha : null;
 
   return empleados.map((e) => {
+    const inicio = e.desde_efectivo && e.desde_efectivo > desde ? e.desde_efectivo : desde;
     const laborables = new Set(e.dias || []);
     const porDia = entradas.get(e.id) || new Map();
     const limite = e.hora_entrada ? minutos(e.hora_entrada) + TOLERANCIA_RETARDO_MIN : null;
     let dias_trabajados = 0, retardos = 0, faltas = 0;
 
     for (const { fecha, iso } of rango) {
-      if (!laborables.has(iso)) continue;
+      if (fecha < inicio || !laborables.has(iso)) continue;
       const entrada = porDia.get(fecha);
       if (!entrada) { faltas++; continue; }
       dias_trabajados++;
       if (limite !== null && minutos(horaMx(entrada)) > limite) retardos++;
     }
-    return { empleado_id: e.id, nombre: e.nombre, dias_trabajados, retardos, faltas };
+    const checadas_dudosas = fin === null ? 0
+      : (dudosas.get(e.id) || []).filter((f) => f >= inicio && f <= fin).length;
+    return { empleado_id: e.id, nombre: e.nombre, dias_trabajados, retardos, faltas, checadas_dudosas };
   });
 }
 

@@ -52,5 +52,14 @@ describe('POST /api/movil/login', () => {
     expect(p.role).toBe('empleado');
     expect(p.empleado_id).toBe(7);
     expect(r.body.nombre).toBe('Ana Lopez');
+    expect(p.pv).toBeUndefined();
+  });
+  it('token lleva pv = pin_generado_en en segundos', async () => {
+    const pinEn = new Date('2026-11-04T10:00:00.789Z');
+    pool.query.mockResolvedValueOnce({ rows: [{ ...base, pin_hash: hash, pin_generado_en: pinEn }] });
+    const r = await login({ empleado: 7, pin: '123456' });
+    expect(r.status).toBe(200);
+    expect(jwt.verify(r.body.token, 'test-secret').pv).toBe(Math.floor(pinEn.getTime() / 1000));
+    expect(pool.query.mock.calls[0][0]).toMatch(/pin_generado_en/);
   });
 });

@@ -15,7 +15,7 @@ describe('calcularAsistencia', () => {
 
   it('entrada lunes 09:10 México -> trabajado, sin retardo', () => {
     expect(calc([ch('2026-11-02', '09:10')])).toEqual([
-      { empleado_id: 1, nombre: 'Ana López', dias_trabajados: 1, retardos: 0, faltas: 0 },
+      { empleado_id: 1, nombre: 'Ana López', dias_trabajados: 1, retardos: 0, faltas: 0, checadas_dudosas: 0 },
     ]);
   });
 
@@ -72,8 +72,8 @@ describe('calcularAsistencia', () => {
     const otro = { id: 2, nombre: 'Luis Pérez', hora_entrada: '07:00', dias: [1] };
     const res = calc([ch('2026-11-02', '07:30', 'entrada', 2)], { empleados: [EMP, otro] });
     expect(res).toEqual([
-      { empleado_id: 1, nombre: 'Ana López', dias_trabajados: 0, retardos: 0, faltas: 1 },
-      { empleado_id: 2, nombre: 'Luis Pérez', dias_trabajados: 1, retardos: 1, faltas: 0 },
+      { empleado_id: 1, nombre: 'Ana López', dias_trabajados: 0, retardos: 0, faltas: 1, checadas_dudosas: 0 },
+      { empleado_id: 2, nombre: 'Luis Pérez', dias_trabajados: 1, retardos: 1, faltas: 0, checadas_dudosas: 0 },
     ]);
   });
 
@@ -85,5 +85,42 @@ describe('calcularAsistencia', () => {
   it('hora_entrada null -> cuenta trabajado pero nunca retardo', () => {
     const [r] = calc([ch('2026-11-02', '11:00')], { empleados: [{ ...EMP, hora_entrada: null }] });
     expect(r).toMatchObject({ dias_trabajados: 1, retardos: 0 });
+  });
+
+  describe('rango por empleado (desde_efectivo)', () => {
+    const semana = { desde: '2026-11-02', hasta: '2026-11-06', hoy: '2026-11-30' };
+
+    it('días anteriores a desde_efectivo no son faltas', () => {
+      const [r] = calc([ch('2026-11-04', '09:00')], { ...semana, empleados: [{ ...EMP, desde_efectivo: '2026-11-04' }] });
+      expect(r).toMatchObject({ dias_trabajados: 1, faltas: 2 }); // solo 5 y 6
+    });
+    it('entradas anteriores a desde_efectivo no cuentan', () => {
+      const [r] = calc([ch('2026-11-02', '09:00')], { ...semana, empleados: [{ ...EMP, desde_efectivo: '2026-11-04' }] });
+      expect(r).toMatchObject({ dias_trabajados: 0, faltas: 3 });
+    });
+    it('sin desde_efectivo usa desde', () => {
+      const [r] = calc([], semana);
+      expect(r).toMatchObject({ faltas: 5 });
+    });
+  });
+
+  describe('checadas_dudosas', () => {
+    const dud = (fecha, hora, tipo = 'entrada') => ({ ...ch(fecha, hora, tipo), hora_dudosa: true });
+
+    it('cuenta las dudosas del rango (cualquier tipo) y siguen contando como entrada', () => {
+      const [r] = calc([dud('2026-11-02', '09:30'), dud('2026-11-02', '18:00', 'salida'), ch('2026-11-03', '09:00')],
+        { desde: '2026-11-02', hasta: '2026-11-03' });
+      expect(r).toMatchObject({ dias_trabajados: 2, retardos: 1, faltas: 0, checadas_dudosas: 2 });
+    });
+    it('no cuenta dudosas antes de desde_efectivo', () => {
+      const [r] = calc([dud('2026-11-02', '09:00'), dud('2026-11-03', '09:00')],
+        { desde: '2026-11-02', hasta: '2026-11-03', empleados: [{ ...EMP, desde_efectivo: '2026-11-03' }] });
+      expect(r).toMatchObject({ dias_trabajados: 1, faltas: 0, checadas_dudosas: 1 });
+    });
+    it('separa dudosas por empleado', () => {
+      const otro = { id: 2, nombre: 'Luis', hora_entrada: '09:00', dias: [1] };
+      const res = calc([{ ...dud('2026-11-02', '09:00'), empleado_id: 2 }], { empleados: [EMP, otro] });
+      expect(res.map((x) => x.checadas_dudosas)).toEqual([0, 1]);
+    });
   });
 });

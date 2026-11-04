@@ -2,6 +2,16 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
 
+// pv: versión del PIN (pin_generado_en en segundos). Regenerar el PIN invalida los tokens anteriores.
+const versionPin = (pinGeneradoEn) => (pinGeneradoEn ? Math.floor(new Date(pinGeneradoEn).getTime() / 1000) : undefined);
+const firmarToken = (empleadoId, pinGeneradoEn) =>
+  jwt.sign({ role: 'empleado', empleado_id: empleadoId, pv: versionPin(pinGeneradoEn) }, process.env.JWT_SECRET, { expiresIn: '30d' });
+// El token ya fue verificado por authEmpleado; aquí solo se lee su pv.
+const pvDelToken = (req) => jwt.decode(req.headers.authorization.slice(7)).pv;
+// Tokens sin pv (legado) solo valen mientras el PIN no tenga fecha de generación.
+const pvVigente = (req, pinGeneradoEn) => pvDelToken(req) === versionPin(pinGeneradoEn);
+const esActivo = (e) => e.estado === 'activo' && e.estatus === 'activo';
+
 exports.login = async (req, res, next) => {
   try {
     const { empleado, pin } = req.body || {};
@@ -13,17 +23,17 @@ exports.login = async (req, res, next) => {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
     const { rows } = await pool.query(
-      'SELECT id, nombre, apellido_paterno, estado, estatus, pin_hash FROM empleados WHERE id = $1',
+      'SELECT id, nombre, apellido_paterno, estado, estatus, pin_hash, pin_generado_en FROM empleados WHERE id = $1',
       [id]
     );
     const emp = rows[0];
     if (!emp || !emp.pin_hash || !(await bcrypt.compare(String(pin), emp.pin_hash))) {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
-    if (emp.estado !== 'activo' || emp.estatus !== 'activo') {
+    if (!esActivo(emp)) {
       return res.status(403).json({ error: 'Empleado inactivo' });
     }
-    const token = jwt.sign({ role: 'empleado', empleado_id: emp.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = firmarToken(emp.id, emp.pin_generado_en);
     res.json({ token, nombre: `${emp.nombre} ${emp.apellido_paterno}` });
   } catch (err) { next(err); }
 };
@@ -34,15 +44,20 @@ const { fechaMx } = require('../utils/horaMexico');
 
 const hhmm = (t) => (t ? String(t).slice(0, 5) : null);
 const numOrNull = (v) => (v === undefined || v === null || v === '' || !isFinite(Number(v)) ? null : Number(v));
+// Fuera de rango se guarda null en vez de rechazar la checada.
+const enRango = (v, min, max) => { const n = numOrNull(v); return n !== null && n >= min && n <= max ? n : null; };
 
 exports.yo = async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, nombre, apellido_paterno, hora_entrada, hora_salida, dias FROM empleados WHERE id = $1',
+      `SELECT id, nombre, apellido_paterno, hora_entrada, hora_salida, dias, estado, estatus, pin_generado_en
+         FROM empleados WHERE id = $1`,
       [req.empleado.id]
     );
     const e = rows[0];
     if (!e) return res.status(404).json({ error: 'Empleado no encontrado' });
+    if (!pvVigente(req, e.pin_generado_en)) return res.status(401).json({ error: 'Sesión revocada' });
+    if (!esActivo(e)) return res.status(403).json({ error: 'Empleado inactivo' });
     const ult = await pool.query(
       `SELECT tipo, timestamp FROM checadas
        WHERE empleado_id = $1 AND (timestamp AT TIME ZONE 'America/Mexico_City')::date = $2::date
@@ -56,23 +71,25 @@ exports.yo = async (req, res, next) => {
       hora_salida: hhmm(e.hora_salida),
       dias: e.dias || [],
       ultima_hoy: ult.rows[0] || null,
+      token: firmarToken(e.id, e.pin_generado_en), // renovación: la sesión no caduca mientras se use
     });
   } catch (err) { next(err); }
 };
 
 exports.crearChecada = async (req, res, next) => {
   try {
-    const { client_id, tipo, timestamp_dispositivo, lat, lng, precision_m } = req.body || {};
+    const { client_id, tipo, timestamp_dispositivo, enviado_en, lat, lng, precision_m } = req.body || {};
     if (!esUuid(String(client_id))) return res.status(400).json({ error: 'client_id inválido' });
     if (tipo !== 'entrada' && tipo !== 'salida') return res.status(400).json({ error: 'Tipo inválido' });
 
-    const emp = await pool.query('SELECT estado, estatus FROM empleados WHERE id = $1', [req.empleado.id]);
+    const emp = await pool.query('SELECT estado, estatus, pin_generado_en FROM empleados WHERE id = $1', [req.empleado.id]);
     const e = emp.rows[0];
-    if (!e || e.estado !== 'activo' || e.estatus !== 'activo') {
+    if (e && !pvVigente(req, e.pin_generado_en)) return res.status(401).json({ error: 'Sesión revocada' });
+    if (!e || !esActivo(e)) {
       return res.status(403).json({ error: 'Empleado inactivo' });
     }
 
-    const { timestamp, hora_dudosa } = resolverTimestamp(timestamp_dispositivo, new Date());
+    const { timestamp, hora_dudosa } = resolverTimestamp(timestamp_dispositivo, enviado_en, new Date());
     const dev = typeof timestamp_dispositivo === 'string' && !isNaN(new Date(timestamp_dispositivo))
       ? new Date(timestamp_dispositivo) : null;
     const ins = await pool.query(
@@ -80,7 +97,7 @@ exports.crearChecada = async (req, res, next) => {
        VALUES ($1, $2, $3, 'app', $4, $5, $6, $7, $8, $9)
        ON CONFLICT (client_id) DO NOTHING
        RETURNING *`,
-      [req.empleado.id, timestamp, tipo, numOrNull(lat), numOrNull(lng), numOrNull(precision_m), dev, client_id, hora_dudosa]
+      [req.empleado.id, timestamp, tipo, enRango(lat, -90, 90), enRango(lng, -180, 180), enRango(precision_m, 0, 100000), dev, client_id, hora_dudosa]
     );
     if (ins.rows[0]) return res.status(201).json(ins.rows[0]);
     const ex = await pool.query('SELECT * FROM checadas WHERE client_id = $1 AND empleado_id = $2', [client_id, req.empleado.id]);
@@ -91,6 +108,8 @@ exports.crearChecada = async (req, res, next) => {
 
 exports.avisos = async (req, res, next) => {
   try {
+    const emp = await pool.query('SELECT estado, estatus FROM empleados WHERE id = $1', [req.empleado.id]);
+    if (!emp.rows[0] || !esActivo(emp.rows[0])) return res.status(403).json({ error: 'Empleado inactivo' });
     const { rows } = await pool.query(
       `SELECT id, titulo, mensaje, vigente_desde, vigente_hasta FROM avisos_gerencia
        WHERE activo AND vigente_desde <= $1::date AND (vigente_hasta IS NULL OR vigente_hasta >= $1::date)

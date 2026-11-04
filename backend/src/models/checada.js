@@ -10,8 +10,15 @@ const CheckadaModel = {
       WHERE c.empleado_id = $1
     `;
     const params = [empleadoId];
-    if (desde) { params.push(desde); query += ` AND c.timestamp >= $${params.length}`; }
-    if (hasta) { params.push(hasta); query += ` AND c.timestamp <= $${params.length}`; }
+    // desde/hasta 'YYYY-MM-DD' son días de México: [desde 00:00, hasta+1 00:00) en America/Mexico_City
+    if (desde) {
+      params.push(desde);
+      query += ` AND c.timestamp >= ($${params.length}::date::timestamp AT TIME ZONE 'America/Mexico_City')`;
+    }
+    if (hasta) {
+      params.push(hasta);
+      query += ` AND c.timestamp < (($${params.length}::date + 1)::timestamp AT TIME ZONE 'America/Mexico_City')`;
+    }
     query += ' ORDER BY c.timestamp DESC';
     const { rows } = await pool.query(query, params);
     return rows;
@@ -65,7 +72,9 @@ const CheckadaModel = {
     const { rows: [r] } = await pool.query(
       `INSERT INTO checador_empleados (dispositivo_id, empleado_id, uid_checador)
        VALUES ($1,$2,$3)
-       ON CONFLICT (dispositivo_id, uid_checador) DO UPDATE SET empleado_id=EXCLUDED.empleado_id
+       ON CONFLICT (dispositivo_id, uid_checador) DO UPDATE SET empleado_id=EXCLUDED.empleado_id,
+         created_at = CASE WHEN checador_empleados.empleado_id = EXCLUDED.empleado_id
+                      THEN checador_empleados.created_at ELSE NOW() END
        RETURNING *`,
       [dispositivoId, empleadoId, uidChecador]
     );

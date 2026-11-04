@@ -79,7 +79,7 @@ const EmpleadoModel = {
 
   async setPin(id, pinHash) {
     const { rowCount } = await pool.query(
-      'UPDATE empleados SET pin_hash = $1, updated_at = NOW() WHERE id = $2',
+      'UPDATE empleados SET pin_hash = $1, pin_generado_en = NOW(), updated_at = NOW() WHERE id = $2',
       [pinHash, id]
     );
     return rowCount > 0;

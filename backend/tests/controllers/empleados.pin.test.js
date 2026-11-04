@@ -19,6 +19,7 @@ describe('PIN de empleado (panel)', () => {
     expect(r.body.pin).toMatch(/^\d{6}$/);
     const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toMatch(/UPDATE empleados SET pin_hash/);
+    expect(sql).toMatch(/pin_generado_en = NOW\(\)/);
     expect(params[0]).toMatch(/^\$2[aby]\$/);
     expect(params).not.toContain(r.body.pin);
     expect(params[1]).toBe('5');

@@ -14,9 +14,22 @@ function validarRango({ desde, hasta }) {
   return null;
 }
 
+// Primer día que cuenta para el empleado: max(desde, fecha de ingreso, inicio de registro), donde el
+// inicio de registro es el día México del primer medio para checar (PIN generado o alta en el reloj).
+// Sin ninguno de los dos (PIN legado sin fecha) no se restringe por registro.
+function desdeEfectivo(desde, e) {
+  const registros = [e.pin_generado_en, e.reloj_desde].filter(Boolean).map((d) => new Date(d));
+  const inicioRegistro = registros.length ? fechaMx(new Date(Math.min(...registros))) : null;
+  return [desde, e.fecha_ingreso ? String(e.fecha_ingreso).slice(0, 10) : null, inicioRegistro]
+    .filter(Boolean)
+    .reduce((a, b) => (b > a ? b : a));
+}
+
 async function obtenerReporte(desde, hasta) {
   const { rows: empleados } = await pool.query(
-    `SELECT e.id, e.nombre, e.apellido_paterno, e.hora_entrada, e.dias
+    `SELECT e.id, e.nombre, e.apellido_paterno, e.hora_entrada, e.dias,
+            e.fecha_ingreso::text AS fecha_ingreso, e.pin_generado_en,
+            (SELECT MIN(ce.created_at) FROM checador_empleados ce WHERE ce.empleado_id = e.id) AS reloj_desde
        FROM empleados e
       WHERE e.estado = 'activo' AND e.estatus = 'activo'
         AND (e.pin_hash IS NOT NULL
@@ -25,9 +38,13 @@ async function obtenerReporte(desde, hasta) {
   );
   if (empleados.length === 0) return [];
 
-  // ::timestamp explícito: "date AT TIME ZONE" a secas resuelve como timestamptz y corre el día 6 h.
+  // ::timestamp explícito: "date AT TIME ZONE" a secas convierte el date a timestamptz con la zona de la
+  // sesión, lo pasa a hora de pared de México (timestamp sin zona) y al compararlo con la columna vuelve a
+  // leerse en la zona de la sesión; con la sesión en UTC la ventana quedaba 12 h antes (00:00 UTC ->
+  // 18:00 del día anterior). date::timestamp AT TIME ZONE 'America/Mexico_City' es la medianoche de
+  // México como instante (timestamptz), sin depender de la zona de la sesión.
   const { rows: checadas } = await pool.query(
-    `SELECT empleado_id, timestamp, tipo
+    `SELECT empleado_id, timestamp, tipo, hora_dudosa
        FROM checadas
       WHERE empleado_id = ANY($3)
         AND timestamp >= ($1::date::timestamp AT TIME ZONE 'America/Mexico_City')
@@ -41,6 +58,7 @@ async function obtenerReporte(desde, hasta) {
       nombre: [e.nombre, e.apellido_paterno].filter(Boolean).join(' '),
       hora_entrada: e.hora_entrada ? String(e.hora_entrada).slice(0, 5) : null,
       dias: e.dias,
+      desde_efectivo: desdeEfectivo(desde, e),
     })),
     checadas,
     desde,
@@ -72,6 +90,7 @@ async function asistenciaXlsx(req, res, next) {
       { header: 'dias_trabajados', key: 'dias_trabajados', width: 16 },
       { header: 'retardos', key: 'retardos', width: 10 },
       { header: 'faltas', key: 'faltas', width: 10 },
+      { header: 'checadas_dudosas', key: 'checadas_dudosas', width: 18 },
     ];
     ws.addRows(filas);
     const buffer = await wb.xlsx.writeBuffer();

@@ -36,7 +36,7 @@ export default function TabAsistencia({ empleadoId }) {
   // Agrupar por fecha
   const porFecha = checadas.reduce((acc, c) => {
     const fecha = new Date(c.timestamp).toLocaleDateString('es-MX', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      timeZone: 'America/Mexico_City', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
     if (!acc[fecha]) acc[fecha] = [];
     acc[fecha].push(c);
@@ -96,11 +96,23 @@ export default function TabAsistencia({ empleadoId }) {
                     {c.tipo}
                   </span>
                   <span className="text-sm font-medium text-gray-800">
-                    {new Date(c.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(c.timestamp).toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit' })}
                   </span>
+                  <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+                    {c.origen === 'app' ? 'App' : 'Reloj'}
+                  </span>
+                  {c.hora_dudosa && (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800">
+                      Hora dudosa
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-gray-400">
                   {c.dispositivo_nombre}{c.ubicacion ? ` — ${c.ubicacion}` : ''}
+                  {c.lat != null && c.lng != null && (
+                    <a href={`https://maps.google.com/?q=${c.lat},${c.lng}`} target="_blank" rel="noreferrer"
+                      className="ml-2 text-blue-600 hover:underline">Ver mapa</a>
+                  )}
                 </div>
               </div>
             ))}

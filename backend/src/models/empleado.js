@@ -53,8 +53,13 @@ const EmpleadoModel = {
       'telefono', 'email', 'direccion', 'nombre_beneficiario', 'observaciones',
       'estatus', 'estado', 'foto',
       'contacto_emergencia_nombre', 'contacto_emergencia_telefono',
+      'hora_entrada', 'hora_salida',
     ];
-    const fields = Object.keys(data).filter(k => EDITABLES.includes(k));
+    // Horas: solo HH:MM[:SS]; vacío/inválido se ignora (la columna es NOT NULL con default)
+    const HORAS = ['hora_entrada', 'hora_salida'];
+    const HORA_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+    const fields = Object.keys(data).filter(k =>
+      EDITABLES.includes(k) && (!HORAS.includes(k) || HORA_RE.test(data[k] || '')));
     if (!fields.length) return this.findById(id);
     const values = fields.map(f => data[f] || null);
     const set = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');

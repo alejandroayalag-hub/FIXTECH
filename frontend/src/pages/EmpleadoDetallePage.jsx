@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getEmpleado, deleteEmpleado, uploadFoto } from '../api/empleados';
+import { getEmpleado, deleteEmpleado, uploadFoto, generarPin } from '../api/empleados';
 import { getDocumentos, getTipos, uploadDocumento, deleteDocumento, abrirDocumento } from '../api/documentos';
 import { getPagosEmpleado } from '../api/pagos';
 import { descargarFormato } from '../api/formatos';
@@ -41,6 +41,17 @@ export default function EmpleadoDetallePage() {
   const [bajaForm, setBajaForm] = useState({ tipoSalida: 'renuncia', fechaSalida: hoyISO(), razonSalida: '', salarioPendiente: '' });
   const [bajaError, setBajaError] = useState('');
   const [creandoBaja, setCreandoBaja] = useState(false);
+  const [pinGenerado, setPinGenerado] = useState(null);
+
+  const handleGenerarPin = async () => {
+    if (!window.confirm('¿Generar un PIN nuevo? El PIN anterior dejará de funcionar.')) return;
+    try {
+      const { pin } = await generarPin(id);
+      setPinGenerado(pin);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al generar el PIN');
+    }
+  };
 
   useEffect(() => {
     getEmpleado(id).then(setEmpleado);
@@ -157,6 +168,10 @@ export default function EmpleadoDetallePage() {
             className="bg-blue-700 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-800 flex items-center gap-1">
             📄 Generar contrato
           </a>
+          <button onClick={handleGenerarPin}
+            className="border border-gray-300 px-3 py-1.5 rounded text-sm hover:bg-gray-100">
+            Generar PIN
+          </button>
           <Link to={`/empleados/${id}/editar`}
             className="border border-gray-300 px-3 py-1.5 rounded text-sm hover:bg-gray-100">
             Editar
@@ -167,6 +182,17 @@ export default function EmpleadoDetallePage() {
           </button>
         </div>
       </div>
+
+      {pinGenerado && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded p-4 text-sm text-gray-800">
+          <p className="font-medium mb-1">Anótalo, no se vuelve a mostrar.</p>
+          <p>Número de empleado: <span className="font-mono font-semibold">{empleado.id}</span></p>
+          <p>PIN: <span className="font-mono text-lg font-semibold tracking-widest">{pinGenerado}</span></p>
+          <button onClick={() => setPinGenerado(null)} className="mt-2 text-xs text-blue-700 hover:underline">
+            Cerrar
+          </button>
+        </div>
+      )}
 
       {/* Datos personales */}
       <div className="bg-white rounded shadow p-5 grid grid-cols-2 gap-4 text-sm">
@@ -181,6 +207,8 @@ export default function EmpleadoDetallePage() {
           ['Beneficiario', empleado.nombre_beneficiario],
           ['Contacto emergencia', empleado.contacto_emergencia_nombre],
           ['Tel. emergencia',     empleado.contacto_emergencia_telefono],
+          ['Horario', empleado.hora_entrada && empleado.hora_salida
+            ? `${empleado.hora_entrada.slice(0, 5)} – ${empleado.hora_salida.slice(0, 5)}` : null],
         ].map(([label, val]) => val ? (
           <div key={label}>
             <dt className="text-gray-500">{label}</dt>

@@ -6,3 +6,4 @@ export const createEmpleado = (data) => api.post('/empleados', data).then(r => r
 export const updateEmpleado = (id, data) => api.put(`/empleados/${id}`, data).then(r => r.data);
 export const deleteEmpleado = (id) => api.delete(`/empleados/${id}`);
 export const uploadFoto = (id, formData) => api.post(`/empleados/${id}/foto`, formData).then(r => r.data);
+export const generarPin = (id) => api.post(`/empleados/${id}/pin`).then(r => r.data);

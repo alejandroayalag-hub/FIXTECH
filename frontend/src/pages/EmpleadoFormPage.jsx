@@ -18,6 +18,8 @@ const CAMPOS = [
   { name: 'nombre_beneficiario',          label: 'Nombre del beneficiario' },
   { name: 'contacto_emergencia_nombre',   label: 'Contacto de emergencia — Nombre' },
   { name: 'contacto_emergencia_telefono', label: 'Contacto de emergencia — Teléfono' },
+  { name: 'hora_entrada',                label: 'Hora de entrada (app checador)', type: 'time' },
+  { name: 'hora_salida',                 label: 'Hora de salida (app checador)',  type: 'time' },
   { name: 'observaciones',                label: 'Observaciones generales', multiline: true },
 ];
 
@@ -38,6 +40,8 @@ export default function EmpleadoFormPage() {
         for (const k in rest) parsed[k] = rest[k] ?? '';
         if (parsed.fecha_nacimiento) parsed.fecha_nacimiento = parsed.fecha_nacimiento.slice(0, 10);
         if (parsed.fecha_ingreso)    parsed.fecha_ingreso    = parsed.fecha_ingreso.slice(0, 10);
+        if (parsed.hora_entrada) parsed.hora_entrada = parsed.hora_entrada.slice(0, 5);
+        if (parsed.hora_salida)  parsed.hora_salida  = parsed.hora_salida.slice(0, 5);
         setForm(parsed);
         setEstatus(est);
       });

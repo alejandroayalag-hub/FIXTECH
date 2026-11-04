@@ -187,6 +187,24 @@ describe('Modelo Empleado', () => {
       expect(callArgs[0]).toContain('estado');
     });
 
+    it('incluye hora_entrada y hora_salida en el UPDATE', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+      await Empleado.update(1, { hora_entrada: '08:30', hora_salida: '17:00:00' });
+      const [query, params] = pool.query.mock.calls[0];
+      expect(query.split('WHERE')[0]).toContain('hora_entrada =');
+      expect(query.split('WHERE')[0]).toContain('hora_salida =');
+      expect(params).toEqual(['08:30', '17:00:00', 1]);
+    });
+
+    it('ignora hora_entrada vacia o con formato invalido (no borra la columna)', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+      await Empleado.update(1, { hora_entrada: '', hora_salida: 'abc', estado: 'activo' });
+      const [query, params] = pool.query.mock.calls[0];
+      expect(query).not.toContain('hora_entrada');
+      expect(query).not.toContain('hora_salida');
+      expect(params).toEqual(['activo', 1]);
+    });
+
     it('no debe actualizar id, created_at o updated_at', async () => {
       const mockEmpleado = { id: 1 };
       pool.query.mockResolvedValueOnce({ rows: [mockEmpleado] });

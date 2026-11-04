@@ -14,7 +14,7 @@ function validarRango({ desde, hasta }) {
   return null;
 }
 
-// Primer día que cuenta para el empleado: max(desde, fecha de ingreso, inicio de registro), donde el
+// Primer día en que una ausencia es falta: max(desde, fecha de ingreso, inicio de registro), donde el
 // inicio de registro es el día México del primer medio para checar (PIN generado o alta en el reloj).
 // Sin ninguno de los dos (PIN legado sin fecha) no se restringe por registro.
 function desdeEfectivo(desde, e) {

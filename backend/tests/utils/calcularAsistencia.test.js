@@ -94,9 +94,16 @@ describe('calcularAsistencia', () => {
       const [r] = calc([ch('2026-11-04', '09:00')], { ...semana, empleados: [{ ...EMP, desde_efectivo: '2026-11-04' }] });
       expect(r).toMatchObject({ dias_trabajados: 1, faltas: 2 }); // solo 5 y 6
     });
-    it('entradas anteriores a desde_efectivo no cuentan', () => {
+    it('entradas anteriores a desde_efectivo sí cuentan (solo se suprimen faltas)', () => {
       const [r] = calc([ch('2026-11-02', '09:00')], { ...semana, empleados: [{ ...EMP, desde_efectivo: '2026-11-04' }] });
-      expect(r).toMatchObject({ dias_trabajados: 0, faltas: 3 });
+      expect(r).toMatchObject({ dias_trabajados: 1, faltas: 3 });
+    });
+    it('PIN regenerado el 20: lo trabajado antes sigue contando (trabajados, retardos, dudosas), sin faltas previas', () => {
+      const checadas = [ch('2026-11-02', '09:00'), { ...ch('2026-11-03', '09:20'), hora_dudosa: true }];
+      const [r] = calc(checadas, { desde: '2026-11-01', hasta: '2026-11-30', hoy: '2026-11-30',
+        empleados: [{ ...EMP, desde_efectivo: '2026-11-20' }] });
+      // L–V del 20 al 30: 20, 23, 24, 25, 26, 27, 30 = 7 faltas
+      expect(r).toMatchObject({ dias_trabajados: 2, retardos: 1, faltas: 7, checadas_dudosas: 1 });
     });
     it('sin desde_efectivo usa desde', () => {
       const [r] = calc([], semana);
@@ -112,10 +119,10 @@ describe('calcularAsistencia', () => {
         { desde: '2026-11-02', hasta: '2026-11-03' });
       expect(r).toMatchObject({ dias_trabajados: 2, retardos: 1, faltas: 0, checadas_dudosas: 2 });
     });
-    it('no cuenta dudosas antes de desde_efectivo', () => {
+    it('cuenta dudosas de todo el rango aunque sean anteriores a desde_efectivo', () => {
       const [r] = calc([dud('2026-11-02', '09:00'), dud('2026-11-03', '09:00')],
         { desde: '2026-11-02', hasta: '2026-11-03', empleados: [{ ...EMP, desde_efectivo: '2026-11-03' }] });
-      expect(r).toMatchObject({ dias_trabajados: 1, faltas: 0, checadas_dudosas: 1 });
+      expect(r).toMatchObject({ dias_trabajados: 2, faltas: 0, checadas_dudosas: 2 });
     });
     it('separa dudosas por empleado', () => {
       const otro = { id: 2, nombre: 'Luis', hora_entrada: '09:00', dias: [1] };

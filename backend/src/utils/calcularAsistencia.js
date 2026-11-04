@@ -20,8 +20,9 @@ function diasDelRango(desde, hasta, hoy) {
   return dias;
 }
 
-// empleados[i].desde_efectivo ('YYYY-MM-DD', opcional): primer día que cuenta para ese empleado
-// (ingreso / alta en el checador); antes de él no hay faltas, entradas ni dudosas.
+// empleados[i].desde_efectivo ('YYYY-MM-DD', opcional): primer día en que una ausencia es falta
+// (ingreso / alta en el checador). Solo suprime faltas: días trabajados, retardos y dudosas se
+// cuentan en todo el rango pedido (regenerar el PIN o el mapeo no borra lo ya trabajado).
 function calcularAsistencia({ empleados, checadas, desde, hasta, hoy }) {
   // primera entrada por empleado y día México: Map<empleado_id, Map<fecha, Date>>
   const entradas = new Map();
@@ -44,21 +45,21 @@ function calcularAsistencia({ empleados, checadas, desde, hasta, hoy }) {
   const fin = rango.length ? rango[rango.length - 1].fecha : null;
 
   return empleados.map((e) => {
-    const inicio = e.desde_efectivo && e.desde_efectivo > desde ? e.desde_efectivo : desde;
+    const inicioFaltas = e.desde_efectivo && e.desde_efectivo > desde ? e.desde_efectivo : desde;
     const laborables = new Set(e.dias || []);
     const porDia = entradas.get(e.id) || new Map();
     const limite = e.hora_entrada ? minutos(e.hora_entrada) + TOLERANCIA_RETARDO_MIN : null;
     let dias_trabajados = 0, retardos = 0, faltas = 0;
 
     for (const { fecha, iso } of rango) {
-      if (fecha < inicio || !laborables.has(iso)) continue;
+      if (!laborables.has(iso)) continue;
       const entrada = porDia.get(fecha);
-      if (!entrada) { faltas++; continue; }
+      if (!entrada) { if (fecha >= inicioFaltas) faltas++; continue; }
       dias_trabajados++;
       if (limite !== null && minutos(horaMx(entrada)) > limite) retardos++;
     }
     const checadas_dudosas = fin === null ? 0
-      : (dudosas.get(e.id) || []).filter((f) => f >= inicio && f <= fin).length;
+      : (dudosas.get(e.id) || []).filter((f) => f >= desde && f <= fin).length;
     return { empleado_id: e.id, nombre: e.nombre, dias_trabajados, retardos, faltas, checadas_dudosas };
   });
 }

@@ -8,6 +8,8 @@ import FormatosPage from './pages/FormatosPage';
 import SalidaDetailPage from './pages/SalidaDetailPage';
 import CulturePage from './pages/CulturePage';
 import CultureElementDetailPage from './pages/CultureElementDetailPage';
+import AvisosPage from './pages/AvisosPage';
+import ReporteAsistenciaPage from './pages/ReporteAsistenciaPage';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -41,6 +43,12 @@ function Layout() {
           <NavLink to="/formatos" className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>
             Formatos
           </NavLink>
+          <NavLink to="/reportes/asistencia" className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>
+            Reporte asistencia
+          </NavLink>
+          <NavLink to="/avisos" className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>
+            Avisos
+          </NavLink>
         </div>
         <div className="flex items-center gap-3">
           <NavLink to="/cultura" className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>
@@ -62,6 +70,8 @@ function Layout() {
           <Route path="/checador/mapeo" element={<MapeoChecadorPage />} />
           <Route path="/formatos" element={<FormatosPage />} />
           <Route path="/salidas/:id" element={<SalidaDetailPage />} />
+          <Route path="/avisos" element={<AvisosPage />} />
+          <Route path="/reportes/asistencia" element={<ReporteAsistenciaPage />} />
           <Route path="/cultura" element={<CulturePage />} />
           <Route path="/cultura/:culturaId" element={<CultureElementDetailPage />} />
         </Routes>

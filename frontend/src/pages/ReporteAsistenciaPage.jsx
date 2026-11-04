@@ -67,16 +67,18 @@ export default function ReporteAsistenciaPage() {
               <th className="p-3 text-right">Días trabajados</th>
               <th className="p-3 text-right">Retardos</th>
               <th className="p-3 text-right">Faltas</th>
+              <th className="p-3 text-right" title="Checadas con hora dudosa (reloj del celular desfasado o fuera de rango)">Dudosas</th>
             </tr>
           </thead>
           <tbody>
-            {filas.length === 0 && <tr><td colSpan={4} className="p-3 text-gray-500">Sin datos en el periodo.</td></tr>}
+            {filas.length === 0 && <tr><td colSpan={5} className="p-3 text-gray-500">Sin datos en el periodo.</td></tr>}
             {filas.map(f => (
               <tr key={f.empleado_id} className="border-t border-gray-100">
                 <td className="p-3">{f.nombre}</td>
                 <td className="p-3 text-right">{f.dias_trabajados}</td>
                 <td className="p-3 text-right">{f.retardos}</td>
                 <td className="p-3 text-right">{f.faltas}</td>
+                <td className={`p-3 text-right ${f.checadas_dudosas > 0 ? 'text-amber-700 font-medium' : ''}`}>{f.checadas_dudosas}</td>
               </tr>
             ))}
           </tbody>

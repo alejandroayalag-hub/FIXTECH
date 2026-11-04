@@ -18,7 +18,11 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "USE_BIOMETRIC",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "ios": {
@@ -41,6 +45,12 @@
           "backgroundColor": "#ffffff"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ddd55be4-a40e-4da5-9ad0-fd410db9d83d"
+      }
+    },
+    "owner": "alxpho"
   }
 }

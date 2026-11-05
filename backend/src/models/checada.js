@@ -24,6 +24,23 @@ const CheckadaModel = {
     return rows;
   },
 
+  // Todas las checadas de un día de México (Checador → Registros)
+  async findByDia(fecha) {
+    const { rows } = await pool.query(
+      `SELECT c.id, c.timestamp, c.tipo, c.origen, c.lat, c.lng, c.hora_dudosa,
+              e.id AS empleado_id, e.numero_empleado, e.nombre, e.apellido_paterno,
+              d.nombre AS dispositivo_nombre, d.ubicacion
+         FROM checadas c
+         JOIN empleados e ON e.id = c.empleado_id
+         LEFT JOIN checador_dispositivos d ON d.id = c.dispositivo_id
+        WHERE c.timestamp >= ($1::date::timestamp AT TIME ZONE 'America/Mexico_City')
+          AND c.timestamp < (($1::date + 1)::timestamp AT TIME ZONE 'America/Mexico_City')
+        ORDER BY c.timestamp DESC`,
+      [fecha]
+    );
+    return rows;
+  },
+
   async syncBatch(dispositivoId, registros) {
     // registros: [{ uid_checador, timestamp, tipo }]
     const insertadas = [];

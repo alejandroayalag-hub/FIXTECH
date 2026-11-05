@@ -11,6 +11,7 @@ router.get('/dispositivos', auth, ctrl.getDispositivos);
 router.get('/mappings', auth, ctrl.getAllMappings);
 router.post('/mappings', auth, ctrl.upsertMapping);
 router.delete('/mappings/:id', auth, ctrl.deleteMapping);
+router.get('/dia', auth, ctrl.getByDia);
 router.get('/empleado/:empleadoId', auth, ctrl.getByEmpleado);
 
 module.exports = router;

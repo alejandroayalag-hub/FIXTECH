@@ -3,6 +3,7 @@ import EmpleadosPage from './pages/EmpleadosPage';
 import EmpleadoDetallePage from './pages/EmpleadoDetallePage';
 import EmpleadoFormPage from './pages/EmpleadoFormPage';
 import MapeoChecadorPage from './pages/MapeoChecadorPage';
+import RegistrosChecadorPage from './pages/RegistrosChecadorPage';
 import PagosPage from './pages/PagosPage';
 import FormatosPage from './pages/FormatosPage';
 import SalidaDetailPage from './pages/SalidaDetailPage';
@@ -37,7 +38,7 @@ function Layout() {
           <NavLink to="/pagos" className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>
             Pagos
           </NavLink>
-          <NavLink to="/checador/mapeo" className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>
+          <NavLink to="/checador" className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>
             Checador
           </NavLink>
           <NavLink to="/formatos" className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>
@@ -67,6 +68,7 @@ function Layout() {
           <Route path="/empleados/:id" element={<EmpleadoDetallePage />} />
           <Route path="/empleados/:id/editar" element={<EmpleadoFormPage />} />
           <Route path="/pagos" element={<PagosPage />} />
+          <Route path="/checador" element={<RegistrosChecadorPage />} />
           <Route path="/checador/mapeo" element={<MapeoChecadorPage />} />
           <Route path="/formatos" element={<FormatosPage />} />
           <Route path="/salidas/:id" element={<SalidaDetailPage />} />

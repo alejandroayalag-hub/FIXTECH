@@ -19,7 +19,7 @@ const empleado = jwt.sign({ role: 'empleado', empleado_id: 7 }, 'test-secret');
 const auth = (r, tok = panel) => r.set('Authorization', `Bearer ${tok}`);
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const EMPLEADOS = [{ id: 1, nombre: 'Ana', apellido_paterno: 'López', hora_entrada: '09:00:00', dias: [1, 2, 3, 4, 5] }];
+const EMPLEADOS = [{ id: 1, numero_empleado: 12, nombre: 'Ana', apellido_paterno: 'López', hora_entrada: '09:00:00', dias: [1, 2, 3, 4, 5] }];
 const CHECADAS = [{ empleado_id: 1, timestamp: new Date('2026-11-02T15:20:00Z'), tipo: 'entrada', hora_dudosa: false }]; // 09:20 México
 
 const mockConsultas = () => {
@@ -67,7 +67,7 @@ describe('/api/reportes/asistencia', () => {
     const r = await auth(request(app).get('/api/reportes/asistencia?desde=2026-11-02&hasta=2026-11-02'));
     expect(r.status).toBe(200);
     expect(r.body).toEqual([
-      { empleado_id: 1, nombre: 'Ana López', dias_trabajados: 1, retardos: 1, faltas: 0, checadas_dudosas: 0 },
+      { numero_empleado: 12, empleado_id: 1, nombre: 'Ana López', dias_trabajados: 1, retardos: 1, faltas: 0, checadas_dudosas: 0 },
     ]);
   });
 
@@ -114,7 +114,7 @@ describe('/api/reportes/asistencia', () => {
     await wb.xlsx.load(r.body);
     const ws = wb.worksheets[0];
     expect(ws.getRow(1).values.slice(1)).toEqual(['empleado', 'nombre', 'dias_trabajados', 'retardos', 'faltas', 'checadas_dudosas']);
-    expect(ws.getRow(2).values.slice(1)).toEqual([1, 'Ana López', 1, 1, 0, 1]);
+    expect(ws.getRow(2).values.slice(1)).toEqual([12, 'Ana López', 1, 1, 0, 1]);
   });
 });
 

@@ -63,6 +63,7 @@ export default function ReporteAsistenciaPage() {
         <table className="w-full bg-white border border-gray-200 rounded-lg text-sm">
           <thead className="bg-gray-50 text-gray-600 text-left">
             <tr>
+              <th className="p-3">No.</th>
               <th className="p-3">Empleado</th>
               <th className="p-3 text-right">Días trabajados</th>
               <th className="p-3 text-right">Retardos</th>
@@ -71,9 +72,10 @@ export default function ReporteAsistenciaPage() {
             </tr>
           </thead>
           <tbody>
-            {filas.length === 0 && <tr><td colSpan={5} className="p-3 text-gray-500">Sin datos en el periodo.</td></tr>}
+            {filas.length === 0 && <tr><td colSpan={6} className="p-3 text-gray-500">Sin datos en el periodo.</td></tr>}
             {filas.map(f => (
               <tr key={f.empleado_id} className="border-t border-gray-100">
+                <td className="p-3 font-mono">{f.numero_empleado}</td>
                 <td className="p-3">{f.nombre}</td>
                 <td className="p-3 text-right">{f.dias_trabajados}</td>
                 <td className="p-3 text-right">{f.retardos}</td>

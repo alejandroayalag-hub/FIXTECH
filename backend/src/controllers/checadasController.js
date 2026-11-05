@@ -27,6 +27,16 @@ exports.getByEmpleado = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.getByDia = async (req, res, next) => {
+  try {
+    const { fecha } = req.query;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '') || isNaN(Date.parse(fecha))) {
+      return res.status(400).json({ error: 'Fecha inválida (YYYY-MM-DD)' });
+    }
+    res.json(await CheckadaModel.findByDia(fecha));
+  } catch (err) { next(err); }
+};
+
 // Mapeos uid_checador → empleado
 exports.getMappings = async (req, res, next) => {
   try {

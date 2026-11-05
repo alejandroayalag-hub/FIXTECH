@@ -3,6 +3,9 @@ import api from './client';
 export const getChecadas = (empleadoId, params = {}) =>
   api.get(`/checadas/empleado/${empleadoId}`, { params }).then(r => r.data);
 
+export const getChecadasDia = (fecha) =>
+  api.get('/checadas/dia', { params: { fecha } }).then(r => r.data);
+
 export const getMappings = () =>
   api.get('/checadas/mappings').then(r => r.data);
 

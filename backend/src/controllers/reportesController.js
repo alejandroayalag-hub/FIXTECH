@@ -27,7 +27,7 @@ function desdeEfectivo(desde, e) {
 
 async function obtenerReporte(desde, hasta) {
   const { rows: empleados } = await pool.query(
-    `SELECT e.id, e.nombre, e.apellido_paterno, e.hora_entrada, e.dias,
+    `SELECT e.id, e.numero_empleado, e.nombre, e.apellido_paterno, e.hora_entrada, e.dias,
             e.fecha_ingreso::text AS fecha_ingreso, e.pin_generado_en,
             (SELECT MIN(ce.created_at) FROM checador_empleados ce WHERE ce.empleado_id = e.id) AS reloj_desde
        FROM empleados e
@@ -52,7 +52,8 @@ async function obtenerReporte(desde, hasta) {
     [desde, hasta, empleados.map((e) => e.id)]
   );
 
-  return calcularAsistencia({
+  const numero = new Map(empleados.map((e) => [e.id, e.numero_empleado]));
+  const filas = calcularAsistencia({
     empleados: empleados.map((e) => ({
       id: e.id,
       nombre: [e.nombre, e.apellido_paterno].filter(Boolean).join(' '),
@@ -65,6 +66,7 @@ async function obtenerReporte(desde, hasta) {
     hasta,
     hoy: fechaMx(new Date()),
   });
+  return filas.map((f) => ({ numero_empleado: numero.get(f.empleado_id), ...f }));
 }
 
 async function asistencia(req, res, next) {
@@ -85,7 +87,7 @@ async function asistenciaXlsx(req, res, next) {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Asistencia');
     ws.columns = [
-      { header: 'empleado', key: 'empleado_id', width: 10 },
+      { header: 'empleado', key: 'numero_empleado', width: 10 },
       { header: 'nombre', key: 'nombre', width: 36 },
       { header: 'dias_trabajados', key: 'dias_trabajados', width: 16 },
       { header: 'retardos', key: 'retardos', width: 10 },

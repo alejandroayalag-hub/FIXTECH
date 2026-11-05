@@ -23,7 +23,7 @@ exports.login = async (req, res, next) => {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
     const { rows } = await pool.query(
-      'SELECT id, nombre, apellido_paterno, estado, estatus, pin_hash, pin_generado_en FROM empleados WHERE id = $1',
+      'SELECT id, nombre, apellido_paterno, estado, estatus, pin_hash, pin_generado_en FROM empleados WHERE numero_empleado = $1',
       [id]
     );
     const emp = rows[0];

@@ -53,6 +53,8 @@ describe('POST /api/movil/login', () => {
     expect(p.empleado_id).toBe(7);
     expect(r.body.nombre).toBe('Ana Lopez');
     expect(p.pv).toBeUndefined();
+    expect(pool.query.mock.calls[0][0]).toMatch(/WHERE numero_empleado = \$1/);
+    expect(pool.query.mock.calls[0][1]).toEqual([7]);
   });
   it('token lleva pv = pin_generado_en en segundos', async () => {
     const pinEn = new Date('2026-11-04T10:00:00.789Z');

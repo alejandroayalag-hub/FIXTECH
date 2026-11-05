@@ -160,7 +160,7 @@ export default function EmpleadoDetallePage() {
             <h1 className="text-2xl font-semibold text-gray-800">
               {empleado.apellido_paterno} {empleado.apellido_materno}, {empleado.nombre}
             </h1>
-            <p className="text-gray-500 text-sm">{empleado.puesto} — {empleado.departamento}</p>
+            <p className="text-gray-500 text-sm">No. {empleado.numero_empleado} · {empleado.puesto} — {empleado.departamento}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -186,7 +186,7 @@ export default function EmpleadoDetallePage() {
       {pinGenerado && (
         <div className="bg-yellow-50 border border-yellow-300 rounded p-4 text-sm text-gray-800">
           <p className="font-medium mb-1">Anótalo, no se vuelve a mostrar.</p>
-          <p>Número de empleado: <span className="font-mono font-semibold">{empleado.id}</span></p>
+          <p>Número de empleado: <span className="font-mono font-semibold">{empleado.numero_empleado}</span></p>
           <p>PIN: <span className="font-mono text-lg font-semibold tracking-widest">{pinGenerado}</span></p>
           <button onClick={() => setPinGenerado(null)} className="mt-2 text-xs text-blue-700 hover:underline">
             Cerrar

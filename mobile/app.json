@@ -47,7 +47,9 @@
       ]
     ],
     "extra": {
-      "eas": {}
+      "eas": {
+        "projectId": "90cec23c-af79-4d6f-9995-9e0cb7cd94df"
+      }
     },
     "owner": "alxpho"
   }

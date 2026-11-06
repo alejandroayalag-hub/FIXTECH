@@ -27,7 +27,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="min-h-screen fondo-libreta flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-md border-t-4 border-fix-naranja p-8 w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
           <img src={logo} alt="Fix Tech Support" className="w-56 mb-3" />

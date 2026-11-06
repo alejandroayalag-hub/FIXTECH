@@ -22,3 +22,16 @@ body {
   margin: 0;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* Fondo tipo libreta: cuadrícula naranja muy tenue + logo como marca de agua abajo a la derecha. */
+.fondo-libreta {
+  background-color: #FDFCFA;
+  background-image:
+    url('./assets/fixtech-logo-marca.png'),
+    linear-gradient(rgb(236 110 0 / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(236 110 0 / 0.07) 1px, transparent 1px);
+  background-size: 180px auto, 22px 22px, 22px 22px;
+  background-position: right 24px bottom 24px, 0 0, 0 0;
+  background-repeat: no-repeat, repeat, repeat;
+  background-attachment: fixed;
+}

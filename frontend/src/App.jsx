@@ -26,7 +26,7 @@ function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-libreta">
       <nav className="bg-white border-b-4 border-fix-naranja px-6 py-2 flex items-center gap-4 shadow-sm">
         <div className="flex items-center gap-3">
           <img src={logo} alt="Fix Tech Support" className="h-10" />

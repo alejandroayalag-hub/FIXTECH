@@ -1,3 +1,4 @@
+import logo from '../assets/fixtech-logo.png';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -27,10 +28,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white rounded-xl shadow-md p-8 w-full max-w-sm">
+      <div className="bg-white rounded-xl shadow-md border-t-4 border-fix-naranja p-8 w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
-          <h1 className="font-bold text-gray-800 text-lg">Recursos Humanos</h1>
-          <p className="text-xs text-gray-400 uppercase tracking-widest">Fix Tech Support</p>
+          <img src={logo} alt="Fix Tech Support" className="w-56 mb-3" />
+          <h1 className="font-semibold text-fix-azul text-sm uppercase tracking-widest">Recursos Humanos</h1>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>

@@ -1,3 +1,4 @@
+import logo from './assets/fixtech-logo.png';
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import EmpleadosPage from './pages/EmpleadosPage';
 import EmpleadoDetallePage from './pages/EmpleadoDetallePage';
@@ -26,10 +27,10 @@ function Layout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-2 flex items-center gap-4 shadow-sm">
-        <div className="flex flex-col leading-tight">
-          <span className="font-bold text-gray-800 text-base tracking-wide">Fix Tech Support</span>
-          <span className="text-xs text-gray-500 uppercase tracking-widest">Recursos Humanos</span>
+      <nav className="bg-white border-b-4 border-fix-naranja px-6 py-2 flex items-center gap-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="Fix Tech Support" className="h-10" />
+          <span className="text-xs text-fix-azul font-semibold uppercase tracking-widest border-l border-gray-200 pl-3">Recursos Humanos</span>
         </div>
         <div className="ml-6 flex gap-4 flex-1">
           <NavLink to="/" end className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>

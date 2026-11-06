@@ -42,8 +42,8 @@ export default function LoginScreen({ onLogin }: Props) {
   return (
     <SafeAreaView style={s.safe}>
       <KeyboardAvoidingView style={s.cont} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Image source={require('../../assets/splash-icon.png')} style={s.logo} resizeMode="contain" />
-        <Text style={s.titulo}>ATA Checador</Text>
+        <Image source={require('../../assets/logo.png')} style={s.logo} resizeMode="contain" />
+        <Text style={s.titulo}>Checador</Text>
         <Text style={s.label}>Número de empleado</Text>
         <TextInput
           style={s.input}
@@ -78,7 +78,7 @@ export default function LoginScreen({ onLogin }: Props) {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.fondo },
   cont: { flex: 1, padding: 24, justifyContent: 'center' },
-  logo: { width: 120, height: 120, alignSelf: 'center' },
+  logo: { width: 240, height: 110, alignSelf: 'center', marginBottom: 8 },
   titulo: { fontSize: 28, fontWeight: '800', color: colors.azul, textAlign: 'center', marginBottom: 24 },
   label: { fontSize: 18, fontWeight: '600', color: colors.texto, marginTop: 12, marginBottom: 6 },
   input: {

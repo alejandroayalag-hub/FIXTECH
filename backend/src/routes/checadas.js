@@ -5,6 +5,9 @@ const auth = require('../middleware/auth');
 // Rutas para el agente local (autenticadas por x-api-key)
 router.post('/sync', ctrl.sync);
 router.get('/mappings/agente', ctrl.getMappings);
+// Reloj Hikvision: multipart (JSON + foto); la foto se descarta. ponytail: memoria con tope de 2 MB.
+const hikMultipart = require('multer')({ limits: { fileSize: 2 * 1024 * 1024, files: 2 } }).any();
+router.post('/hik/:apiKey', hikMultipart, ctrl.hikEvento);
 
 // Rutas protegidas por JWT (panel web admin)
 router.get('/dispositivos', auth, ctrl.getDispositivos);

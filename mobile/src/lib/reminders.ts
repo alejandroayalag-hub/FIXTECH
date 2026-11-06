@@ -57,6 +57,6 @@ export async function syncReminders(horario: Horario): Promise<void> {
       });
     }
   } catch (err) {
-    console.warn('ATA Checador: no se pudieron programar los recordatorios', err);
+    console.warn('Fix Tech Checador: no se pudieron programar los recordatorios', err);
   }
 }

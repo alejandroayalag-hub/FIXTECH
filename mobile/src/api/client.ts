@@ -1,4 +1,4 @@
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://rh.serviciosata.com';
+const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://fixtech.havocdev.mx';
 
 const TIMEOUT_MS = 15000;
 

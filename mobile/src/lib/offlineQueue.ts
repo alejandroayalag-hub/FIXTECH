@@ -30,7 +30,7 @@ async function readQueue(): Promise<Entrada[]> {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
-    console.warn('ATA Checador: la cola de checadas está corrupta, se descarta', error);
+    console.warn('Fix Tech Checador: la cola de checadas está corrupta, se descarta', error);
     return [];
   }
 }
@@ -105,7 +105,7 @@ async function flushQueueSinLock(): Promise<FlushResult> {
         stillQueued.push(entrada);
       } else {
         droppedCount += 1;
-        console.warn('ATA Checador: descartando checada rechazada por el servidor', {
+        console.warn('Fix Tech Checador: descartando checada rechazada por el servidor', {
           client_id: payload.client_id,
           tipo: payload.tipo,
           error: err instanceof Error ? err.message : String(err),

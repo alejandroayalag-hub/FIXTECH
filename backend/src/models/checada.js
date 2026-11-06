@@ -46,8 +46,13 @@ const CheckadaModel = {
     const insertadas = [];
     for (const r of registros) {
       // Buscar empleado mapeado
+      // Sin mapeo manual, el número en el reloj se toma como el número de empleado del sistema
       const { rows: [mapa] } = await pool.query(
-        'SELECT empleado_id FROM checador_empleados WHERE dispositivo_id=$1 AND uid_checador=$2',
+        `SELECT empleado_id FROM (
+           SELECT empleado_id, 0 AS prio FROM checador_empleados WHERE dispositivo_id=$1 AND uid_checador=$2
+           UNION ALL
+           SELECT id, 1 FROM empleados WHERE numero_empleado=$2
+         ) m ORDER BY prio LIMIT 1`,
         [dispositivoId, r.uid_checador]
       );
       if (!mapa) continue;

@@ -4,7 +4,7 @@
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_BASE_URL": "https://rh.serviciosata.com" }
+      "env": { "EXPO_PUBLIC_API_BASE_URL": "https://fixtech.havocdev.mx" }
     }
   }
 }

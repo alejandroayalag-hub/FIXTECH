@@ -92,7 +92,7 @@ export default function InicioScreen({ navigation, onLogout }: Props) {
             if (vivo.current) setYo(actual);
           }
         } catch (err) {
-          console.warn('ATA Checador: no se pudo reenviar la cola', err);
+          console.warn('Fix Tech Checador: no se pudo reenviar la cola', err);
         } finally {
           flushing = false;
         }
@@ -175,7 +175,7 @@ export default function InicioScreen({ navigation, onLogout }: Props) {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Text style={s.titulo}>ATA Checador</Text>
+        <Text style={s.titulo}>Fix Tech Checador</Text>
         <Pressable onPress={cerrarSesion} hitSlop={12} accessibilityRole="button">
           <Text style={s.salir}>Cerrar sesión</Text>
         </Pressable>

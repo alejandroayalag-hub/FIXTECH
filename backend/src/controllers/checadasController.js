@@ -1,4 +1,5 @@
 const CheckadaModel = require('../models/checada');
+const hikEvento = require('../utils/hikEvento');
 
 // Llamado por el agente local con su api_key
 exports.sync = async (req, res, next) => {
@@ -81,5 +82,17 @@ exports.getDispositivos = async (req, res, next) => {
   try {
     const dispositivos = await CheckadaModel.getAllDispositivos();
     res.json(dispositivos);
+  } catch (err) { next(err); }
+};
+
+// Reloj Hikvision (HTTP Listening). La llave va en la URL porque el reloj no manda encabezados propios.
+// Siempre responde 200 a eventos que no son checada para que el reloj no los reintente.
+exports.hikEvento = async (req, res, next) => {
+  try {
+    const dispositivo = await CheckadaModel.getDispositivo(req.params.apiKey);
+    if (!dispositivo) return res.status(401).json({ error: 'Dispositivo no autorizado' });
+    const registro = hikEvento(req.body);
+    if (registro) await CheckadaModel.syncBatch(dispositivo.id, [registro]);
+    res.json({ ok: true });
   } catch (err) { next(err); }
 };

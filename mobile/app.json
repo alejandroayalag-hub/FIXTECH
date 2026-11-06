@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "ATA Checador",
-    "slug": "ata-checador",
+    "name": "Fix Tech Checador",
+    "slug": "fixtech-checador",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "android": {
-      "package": "mx.serviciosata.checador",
+      "package": "mx.havocdev.fixtech.checador",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -27,8 +27,8 @@
     },
     "ios": {
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "ATA Checador usa tu ubicación para registrar dónde checas.",
-        "NSFaceIDUsageDescription": "ATA Checador usa tu huella o rostro para confirmar que eres tú."
+        "NSLocationWhenInUseUsageDescription": "Fix Tech Checador usa tu ubicación para registrar dónde checas.",
+        "NSFaceIDUsageDescription": "Fix Tech Checador usa tu huella o rostro para confirmar que eres tú."
       }
     },
     "plugins": [
@@ -47,9 +47,7 @@
       ]
     ],
     "extra": {
-      "eas": {
-        "projectId": "ddd55be4-a40e-4da5-9ad0-fd410db9d83d"
-      }
+      "eas": {}
     },
     "owner": "alxpho"
   }

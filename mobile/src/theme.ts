@@ -1,6 +1,8 @@
+// Marca Fix Tech Support (logo): azul #3366B0, naranja #EC6E00.
 export const colors = {
-  azul: '#1e3a8a',
-  azulOscuro: '#172554',
+  azul: '#3366B0',
+  azulOscuro: '#22467A',
+  naranja: '#EC6E00',
   texto: '#0f172a',
   gris: '#475569',
   borde: '#94a3b8',

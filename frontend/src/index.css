@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+/* Marca Fix Tech Support: azul #3366B0 + naranja #EC6E00 (del logo).
+   ponytail: se remapea la paleta blue de Tailwind aquí en vez de tocar cada componente. */
+@theme {
+  --color-fix-azul: #3366B0;
+  --color-fix-naranja: #EC6E00;
+
+  --color-blue-50:  #EEF3FA;
+  --color-blue-100: #DCE6F4;
+  --color-blue-200: #B9CCE9;
+  --color-blue-300: #8AA9D8;
+  --color-blue-400: #5C86C6;
+  --color-blue-500: #3F72BB;
+  --color-blue-600: #3366B0;
+  --color-blue-700: #2B5797;
+  --color-blue-800: #22467A;
+  --color-blue-900: #1A365E;
+}
+
 body {
   margin: 0;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;

@@ -116,10 +116,6 @@ describe('/api/reportes/asistencia', () => {
     expect(ws.getRow(1).values.slice(1)).toEqual(['empleado', 'nombre', 'dias_trabajados', 'retardos', 'faltas', 'checadas_dudosas']);
     expect(ws.getRow(2).values.slice(1)).toEqual([12, 'Ana López', 1, 1, 0, 1]);
 
-    const dyh = wb.getWorksheet('ExportarDYH');
-    expect(dyh.getCell('A4').value).toBe('Tipo Periodo:');
-    expect(dyh.getRow(9).values.slice(1)).toEqual(['Código Empleado', 'TRAB', 'FINJ']);
-    expect(dyh.getRow(10).values.slice(1)).toEqual(['12', 1, 0]);
   });
 });
 

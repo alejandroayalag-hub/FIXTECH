@@ -77,26 +77,6 @@ async function asistencia(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// Misma disposición que la hoja "ExportarDYH" de la Hoja Electrónica de CONTPAQi Nóminas (Prenómina
-// días y horas): se copian las filas desde A9 a la plantilla y ahí se elige tipo de periodo/ejercicio/periodo.
-// TRAB = días trabajados, FINJ = faltas injustificadas (mnemónicos de tipo D).
-// ponytail: retardos no se exportan (RET en CONTPAQi es en horas y aquí se cuentan eventos);
-// Código Empleado = número de empleado, debe coincidir con el código en CONTPAQi.
-function agregarHojaDYH(wb, filas) {
-  const ws = wb.addWorksheet('ExportarDYH');
-  ws.getCell('F1').value = 'Exportación de Prenomina DYH';
-  ws.getCell('A4').value = 'Tipo Periodo:';
-  ws.getCell('A5').value = 'Ejercicio:';
-  ws.getCell('A6').value = 'Periodo:';
-  ws.getCell('A7').value = 'Utilice mnemónicos válidos';
-  ws.getCell('A8').value = ' de CONTPAQ i® NÓMINAS';
-  ws.getRow(9).values = ['Código Empleado', 'TRAB', 'FINJ'];
-  filas.forEach((f, i) => {
-    ws.getRow(10 + i).values = [String(f.numero_empleado ?? ''), f.dias_trabajados, f.faltas];
-  });
-  ws.getColumn(1).width = 18;
-}
-
 async function asistenciaXlsx(req, res, next) {
   try {
     const error = validarRango(req.query);
@@ -115,7 +95,6 @@ async function asistenciaXlsx(req, res, next) {
       { header: 'checadas_dudosas', key: 'checadas_dudosas', width: 18 },
     ];
     ws.addRows(filas);
-    agregarHojaDYH(wb, filas);
     const buffer = await wb.xlsx.writeBuffer();
 
     res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

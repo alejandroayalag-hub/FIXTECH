@@ -81,8 +81,10 @@ describe('Modelo Empleado', () => {
       // Verify the query includes estado column
       const callArgs = pool.query.mock.calls[0];
       expect(callArgs[0]).toContain('estado');
-      // Verify 16 parameters (added estado as 16th param)
-      expect(callArgs[1].length).toBe(16);
+      // 16 campos + numero_empleado (null = siguiente número libre)
+      expect(callArgs[1].length).toBe(17);
+      expect(callArgs[1][16]).toBeNull();
+      expect(callArgs[0]).toContain('COALESCE($17::int, (SELECT COALESCE(MAX(numero_empleado), 0) + 1 FROM empleados))');
     });
   });
 
@@ -169,7 +171,7 @@ describe('Modelo Empleado', () => {
       await Empleado.create({ ...base, hora_entrada: '08:30' });
       const [query, params] = pool.query.mock.calls[0];
       expect(query).toContain('hora_entrada');
-      expect(params[params.length - 1]).toBe('08:30');
+      expect(params[params.length - 2]).toBe('08:30'); // el último es numero_empleado
     });
 
     it('con hora vacia no la incluye (aplica el default de la BD)', async () => {
@@ -178,7 +180,43 @@ describe('Modelo Empleado', () => {
       const [query, params] = pool.query.mock.calls[0];
       expect(query).not.toContain('hora_');
       expect(params).not.toContain('');
-      expect(params.length).toBe(16);
+      expect(params.length).toBe(17);
+    });
+  });
+
+  describe('numero_empleado (código NOMIPAQ)', () => {
+    const base = { nombre: 'A', apellido_paterno: 'B', fecha_ingreso: '2026-01-01', email: 'a@b.c' };
+
+    it('alta con número capturado lo usa', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+      await Empleado.create({ ...base, numero_empleado: ' 25 ' });
+      const [, params] = pool.query.mock.calls[0];
+      expect(params[params.length - 1]).toBe(25);
+    });
+
+    it.each(['0', '-3', 'A12', '1.5', '1234567890'])('número inválido %s -> 400 sin tocar la BD', async (n) => {
+      await expect(Empleado.create({ ...base, numero_empleado: n })).rejects.toMatchObject({ status: 400 });
+      await expect(Empleado.update(1, { numero_empleado: n })).rejects.toMatchObject({ status: 400 });
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('update con número lo actualiza; vacío no lo toca', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+      await Empleado.update(1, { nombre: 'X', numero_empleado: '7' });
+      const [query, params] = pool.query.mock.calls[0];
+      expect(query).toContain('numero_empleado = $2');
+      expect(params).toEqual(['X', 7, 1]);
+
+      pool.query.mockClear();
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+      await Empleado.update(1, { nombre: 'X', numero_empleado: '' });
+      expect(pool.query.mock.calls[0][0]).not.toContain('numero_empleado');
+    });
+
+    it('número repetido -> 409 con mensaje claro', async () => {
+      pool.query.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: '23505', constraint: 'idx_empleados_numero_empleado' }));
+      await expect(Empleado.update(1, { numero_empleado: '2' }))
+        .rejects.toMatchObject({ status: 409, message: 'Ese número de empleado ya lo tiene otro empleado' });
     });
   });
 

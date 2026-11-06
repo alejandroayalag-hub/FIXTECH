@@ -6,6 +6,26 @@ const HORA_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
 const sinPin = ({ pin_hash, ...resto }) => resto;
 
+// numero_empleado = código del empleado en NOMIPAQ y usuario de la app. Vacío = no se toca
+// (en alta: siguiente número libre). Inválido o repetido = 400/409.
+const NUMERO_RE = /^[1-9]\d{0,8}$/;
+function numeroEmpleado(data) {
+  const v = data.numero_empleado;
+  if (v === undefined || v === null || String(v).trim() === '') return null;
+  if (!NUMERO_RE.test(String(v).trim())) {
+    throw Object.assign(new Error('El número de empleado debe ser un entero positivo'), { status: 400 });
+  }
+  return Number(String(v).trim());
+}
+async function conNumeroUnico(promesa) {
+  try { return await promesa; } catch (err) {
+    if (err.code === '23505' && /numero_empleado/.test(err.constraint || err.detail || '')) {
+      throw Object.assign(new Error('Ese número de empleado ya lo tiene otro empleado'), { status: 409 });
+    }
+    throw err;
+  }
+}
+
 const EmpleadoModel = {
   async findAll(filters = {}) {
     const { estado } = filters;
@@ -46,12 +66,17 @@ const EmpleadoModel = {
     for (const h of HORAS) {
       if (HORA_RE.test(data[h] || '')) { cols.push(h); vals.push(data[h]); }
     }
-    const { rows } = await pool.query(
+    const ph = cols.map((_, i) => `$${i + 1}`);
+    // Sin número capturado: max+1 (no la secuencia, para no chocar con números capturados a mano).
+    // ponytail: dos altas simultáneas → el índice único rechaza una (409) y basta reintentar.
+    cols.push('numero_empleado'); vals.push(numeroEmpleado(data));
+    ph.push(`COALESCE($${vals.length}::int, (SELECT COALESCE(MAX(numero_empleado), 0) + 1 FROM empleados))`);
+    const { rows } = await conNumeroUnico(pool.query(
       `INSERT INTO empleados (${cols.join(', ')})
-       VALUES (${cols.map((_, i) => `$${i + 1}`).join(',')})
+       VALUES (${ph.join(',')})
        RETURNING *`,
       vals
-    );
+    ));
     return sinPin(rows[0]);
   },
 
@@ -67,13 +92,15 @@ const EmpleadoModel = {
     ];
     const fields = Object.keys(data).filter(k =>
       EDITABLES.includes(k) && (!HORAS.includes(k) || HORA_RE.test(data[k] || '')));
-    if (!fields.length) return this.findById(id);
     const values = fields.map(f => data[f] || null);
+    const numero = numeroEmpleado(data);
+    if (numero !== null) { fields.push('numero_empleado'); values.push(numero); }
+    if (!fields.length) return this.findById(id);
     const set = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
-    const { rows } = await pool.query(
+    const { rows } = await conNumeroUnico(pool.query(
       `UPDATE empleados SET ${set}, updated_at = NOW() WHERE id = $${fields.length + 1} RETURNING *`,
       [...values, id]
-    );
+    ));
     return rows[0] ? sinPin(rows[0]) : null;
   },
 

@@ -164,3 +164,64 @@ describe('rango por empleado: ingreso y alta en el checador', () => {
     expect((await reporte({ pin_generado_en: null, reloj_desde: null })).faltas).toBe(5);
   });
 });
+
+describe('/api/reportes/nomipaq-dyh.xlsx', () => {
+  // Semana jue 5 – mié 11 nov 2026; "hoy" fijo después.
+  beforeEach(() => {
+    jest.resetAllMocks();
+    jest.useFakeTimers({ now: new Date('2026-11-30T18:00:00Z'), doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'queueMicrotask'] });
+  });
+  afterEach(() => jest.useRealTimers());
+
+  const leer = async (r) => { const wb = new ExcelJS.Workbook(); await wb.xlsx.load(r.body); return wb; };
+
+  it('desde inválida -> 400', async () => {
+    for (const q of ['', '?desde=2026-02-30', '?desde=x']) {
+      expect((await auth(request(app).get(`/api/reportes/nomipaq-dyh.xlsx${q}`))).status).toBe(400);
+    }
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('cuadrícula DYH: código, 7 fechas y TRAB solo en laborables con entrada, ordenado por código', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [
+        { id: 1, numero_empleado: 20, nombre: 'Ana', apellido_paterno: 'López', dias: [1, 2, 3, 4, 5] },
+        { id: 2, numero_empleado: 3, nombre: 'Beto', apellido_paterno: 'Ruiz', dias: [1, 2, 3, 4, 5] },
+      ] })
+      .mockResolvedValueOnce({ rows: [
+        { empleado_id: 1, timestamp: new Date('2026-11-05T15:00:00Z'), tipo: 'entrada', hora_dudosa: false }, // jue
+        { empleado_id: 1, timestamp: new Date('2026-11-05T23:00:00Z'), tipo: 'salida', hora_dudosa: false },
+        { empleado_id: 1, timestamp: new Date('2026-11-07T15:00:00Z'), tipo: 'entrada', hora_dudosa: false }, // sáb: no laborable
+        { empleado_id: 2, timestamp: new Date('2026-11-10T05:30:00Z'), tipo: 'entrada', hora_dudosa: false }, // 23:30 lun 9 México
+      ] });
+    const r = await auth(request(app).get('/api/reportes/nomipaq-dyh.xlsx?desde=2026-11-05')).buffer(true).parse(binario);
+    expect(r.status).toBe(200);
+    expect(r.headers['content-disposition']).toBe('attachment; filename="nomipaq_dyh_2026-11-05_2026-11-11.xlsx"');
+    expect(pool.query.mock.calls[1][1].slice(0, 2)).toEqual(['2026-11-05', '2026-11-11']);
+
+    const wb = await leer(r);
+    const ws = wb.getWorksheet('ExportarDYH');
+    expect(ws.getCell('B4').value).toBe('Semanal');
+    expect(ws.getCell('B5').value).toBe(2026);
+    expect(ws.getCell('A9').value).toBe('Código Empleado');
+    const fechas = ws.getRow(9).values.slice(2, 9).map((d) => d.toISOString().slice(0, 10));
+    expect(fechas).toEqual(['2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08', '2026-11-09', '2026-11-10', '2026-11-11']);
+    const fila = (n) => Array.from({ length: 8 }, (_, i) => ws.getRow(n).getCell(i + 1).value ?? null);
+    expect(fila(10)).toEqual([3, null, null, null, null, 'TRAB', null, null]);
+    expect(fila(11)).toEqual([20, 'TRAB', null, null, null, null, null, null]);
+    expect(ws.getRow(12).getCell(1).value).toBeNull();
+
+    const ref = wb.getWorksheet('Empleados');
+    expect(ref.getRow(2).values.slice(1)).toEqual([3, 'Beto Ruiz', 1]);
+    expect(ref.getRow(3).values.slice(1)).toEqual([20, 'Ana López', 1]);
+  });
+
+  it('sin empleados con checador -> solo encabezados', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    const r = await auth(request(app).get('/api/reportes/nomipaq-dyh.xlsx?desde=2026-11-05')).buffer(true).parse(binario);
+    expect(r.status).toBe(200);
+    const ws = (await leer(r)).getWorksheet('ExportarDYH');
+    expect(ws.getCell('A9').value).toBe('Código Empleado');
+    expect(ws.getRow(10).getCell(1).value).toBeNull();
+  });
+});

@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getEmpleado, createEmpleado, updateEmpleado } from '../api/empleados';
 
 const CAMPOS = [
+  { name: 'numero_empleado',  label: 'Número de empleado (código en NOMIPAQ)', type: 'number',
+    ayuda: 'El mismo código que tiene en NOMIPAQ. Es también su usuario en la app ATA Checador. Vacío = siguiente número libre.' },
   { name: 'nombre',           label: 'Nombre',             required: true },
   { name: 'apellido_paterno', label: 'Apellido paterno',    required: true },
   { name: 'apellido_materno', label: 'Apellido materno' },
@@ -100,9 +102,12 @@ export default function EmpleadoFormPage() {
                 onChange={handleChange}
                 required={c.required}
                 maxLength={c.maxLength}
+                min={c.type === 'number' ? 1 : undefined}
+                step={c.type === 'number' ? 1 : undefined}
                 className="border rounded px-3 py-2 w-full text-sm"
               />
             )}
+            {c.ayuda && <p className="text-xs text-gray-500 mt-1">{c.ayuda}</p>}
           </div>
         ))}
 

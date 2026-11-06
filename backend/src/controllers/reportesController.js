@@ -1,7 +1,7 @@
 const ExcelJS = require('exceljs');
 const pool = require('../db/pool');
 const { fechaMx } = require('../utils/horaMexico');
-const { calcularAsistencia } = require('../utils/calcularAsistencia');
+const { calcularAsistencia, diasTrabajados } = require('../utils/calcularAsistencia');
 
 const esFecha = (s) => {
   if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
@@ -25,7 +25,8 @@ function desdeEfectivo(desde, e) {
     .reduce((a, b) => (b > a ? b : a));
 }
 
-async function obtenerReporte(desde, hasta) {
+// Empleados con medio para checar (PIN o reloj) y sus checadas del rango (días México)
+async function cargar(desde, hasta) {
   const { rows: empleados } = await pool.query(
     `SELECT e.id, e.numero_empleado, e.nombre, e.apellido_paterno, e.hora_entrada, e.dias,
             e.fecha_ingreso::text AS fecha_ingreso, e.pin_generado_en,
@@ -36,7 +37,7 @@ async function obtenerReporte(desde, hasta) {
              OR EXISTS (SELECT 1 FROM checador_empleados ce WHERE ce.empleado_id = e.id))
       ORDER BY e.nombre, e.apellido_paterno, e.id`
   );
-  if (empleados.length === 0) return [];
+  if (empleados.length === 0) return { empleados, checadas: [] };
 
   // ::timestamp explícito: "date AT TIME ZONE" a secas convierte el date a timestamptz con la zona de la
   // sesión, lo pasa a hora de pared de México (timestamp sin zona) y al compararlo con la columna vuelve a
@@ -51,6 +52,12 @@ async function obtenerReporte(desde, hasta) {
         AND timestamp < (($2::date + 1)::timestamp AT TIME ZONE 'America/Mexico_City')`,
     [desde, hasta, empleados.map((e) => e.id)]
   );
+  return { empleados, checadas };
+}
+
+async function obtenerReporte(desde, hasta) {
+  const { empleados, checadas } = await cargar(desde, hasta);
+  if (empleados.length === 0) return [];
 
   const numero = new Map(empleados.map((e) => [e.id, e.numero_empleado]));
   const filas = calcularAsistencia({
@@ -103,4 +110,74 @@ async function asistenciaXlsx(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { asistencia, asistenciaXlsx };
+// Semana NOMIPAQ: 7 días desde `desde` (el contador elige el día en que arranca su periodo semanal)
+const sumarDias = (fecha, n) => {
+  const d = new Date(`${fecha}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+// Prenómina DYH para CONTPAQi NÓMINAS: misma cuadrícula que la hoja ExportarDYH de su plantilla
+// (fila 9: "Código Empleado" + una columna por día; filas 10+: código y TRAB en cada día trabajado).
+// Se pega en la plantilla del contador después de "Agregar fechas" y él da "Exportar a NÓMINAS".
+async function nomipaqDyhXlsx(req, res, next) {
+  try {
+    const { desde } = req.query;
+    if (!esFecha(desde)) return res.status(400).json({ error: 'desde es requerida (formato YYYY-MM-DD)' });
+    const hasta = sumarDias(desde, 6);
+    const fechas = Array.from({ length: 7 }, (_, i) => sumarDias(desde, i));
+
+    const { empleados, checadas } = await cargar(desde, hasta);
+    const trabajados = diasTrabajados({
+      empleados: empleados.map((e) => ({ id: e.id, dias: e.dias })),
+      checadas, desde, hasta, hoy: fechaMx(new Date()),
+    });
+    const ordenados = [...empleados].sort((a, b) => a.numero_empleado - b.numero_empleado);
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('ExportarDYH');
+    ws.getCell('A1').value = 'Exportación de Prenomina DYH';
+    ws.getCell('A1').font = { bold: true };
+    ws.getCell('A4').value = 'Tipo Periodo:'; ws.getCell('B4').value = 'Semanal';
+    ws.getCell('A5').value = 'Ejercicio:'; ws.getCell('B5').value = Number(desde.slice(0, 4));
+    ws.getCell('A6').value = 'Periodo:';
+    ws.getCell('D6').value = 'Número de periodo: capturarlo en la plantilla de NOMIPAQ';
+    ws.getCell('A7').value = 'Mnemónicos de CONTPAQ i® NÓMINAS — TRAB = día trabajado';
+    const encabezado = ws.getRow(9);
+    encabezado.getCell(1).value = 'Código Empleado';
+    fechas.forEach((f, i) => {
+      const c = encabezado.getCell(i + 2);
+      c.value = new Date(`${f}T00:00:00Z`);
+      c.numFmt = 'dd/mm/yyyy';
+    });
+    encabezado.font = { bold: true };
+    ordenados.forEach((e, idx) => {
+      const fila = ws.getRow(10 + idx);
+      fila.getCell(1).value = e.numero_empleado;
+      const dias = trabajados.get(e.id);
+      fechas.forEach((f, i) => { if (dias.has(f)) fila.getCell(i + 2).value = 'TRAB'; });
+    });
+    ws.getColumn(1).width = 18;
+    for (let i = 2; i <= 8; i++) ws.getColumn(i).width = 12;
+
+    // Solo referencia para el contador; no se pega en la plantilla
+    const ref = wb.addWorksheet('Empleados');
+    ref.columns = [
+      { header: 'Código Empleado', key: 'numero', width: 18 },
+      { header: 'Nombre', key: 'nombre', width: 36 },
+      { header: 'Días trabajados', key: 'dias', width: 16 },
+    ];
+    ref.addRows(ordenados.map((e) => ({
+      numero: e.numero_empleado,
+      nombre: [e.nombre, e.apellido_paterno].filter(Boolean).join(' '),
+      dias: trabajados.get(e.id).size,
+    })));
+
+    const buffer = await wb.xlsx.writeBuffer();
+    res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.set('Content-Disposition', `attachment; filename="nomipaq_dyh_${desde}_${hasta}.xlsx"`);
+    res.send(Buffer.from(buffer));
+  } catch (err) { next(err); }
+}
+
+module.exports = { asistencia, asistenciaXlsx, nomipaqDyhXlsx };

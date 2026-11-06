@@ -1,5 +1,19 @@
 import { useState } from 'react';
-import { getReporteAsistencia, descargarReporteXlsx } from '../api/reportes';
+import { getReporteAsistencia, descargarReporteXlsx, descargarNomipaqDyh } from '../api/reportes';
+
+// Lunes de la semana pasada (día de México): la última semana completa
+function lunesSemanaPasada() {
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' })
+    .format(new Date()).split('-').map(Number);
+  const hoy = new Date(Date.UTC(y, m - 1, d));
+  hoy.setUTCDate(hoy.getUTCDate() - ((hoy.getUTCDay() + 6) % 7) - 7);
+  return hoy.toISOString().slice(0, 10);
+}
+const finSemana = (desde) => {
+  const d = new Date(`${desde}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 6);
+  return d.toISOString().slice(0, 10);
+};
 
 const msgError = async (e) => {
   let d = e.response?.data;
@@ -35,12 +49,37 @@ export default function ReporteAsistenciaPage() {
     catch (e) { setError(await msgError(e)); }
   };
 
+  const [semana, setSemana] = useState(lunesSemanaPasada);
+  const exportarNomipaq = async () => {
+    setError('');
+    try { await descargarNomipaqDyh(semana); }
+    catch (e) { setError(await msgError(e)); }
+  };
+
   const inp = 'border border-gray-300 rounded px-3 py-2 text-sm';
 
   return (
     <div>
       <h1 className="text-xl font-bold text-gray-800 mb-4">Reporte de asistencia</h1>
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded">{error}</div>}
+
+      <div className="bg-white rounded shadow p-4 mb-6">
+        <h2 className="font-semibold text-gray-800 mb-1">Exportar a NOMIPAQ (prenómina semanal DYH)</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          Excel con la cuadrícula de la hoja ExportarDYH: código de empleado y TRAB en cada día trabajado.
+          En la plantilla del contador: elegir el periodo, "Agregar fechas", pegar desde la fila 9 y "Exportar a CONTPAQi NÓMINAS".
+        </p>
+        <div className="flex gap-3 items-end flex-wrap">
+          <label className="text-sm text-gray-600 flex flex-col">Inicio de la semana
+            <input type="date" className={inp} value={semana} onChange={e => setSemana(e.target.value)} />
+          </label>
+          {semana && <span className="text-sm text-gray-500 pb-2">al {finSemana(semana)}</span>}
+          <button onClick={exportarNomipaq} disabled={!semana}
+            className="bg-blue-700 text-white text-sm px-4 py-2 rounded hover:bg-blue-800 disabled:opacity-50">
+            Descargar para NOMIPAQ
+          </button>
+        </div>
+      </div>
 
       <div className="flex gap-3 items-end flex-wrap mb-6">
         <label className="text-sm text-gray-600 flex flex-col">Desde

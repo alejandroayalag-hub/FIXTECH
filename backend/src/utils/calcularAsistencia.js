@@ -24,23 +24,7 @@ function diasDelRango(desde, hasta, hoy) {
 // (ingreso / alta en el checador). Solo suprime faltas: días trabajados, retardos y dudosas se
 // cuentan en todo el rango pedido (regenerar el PIN o el mapeo no borra lo ya trabajado).
 function calcularAsistencia({ empleados, checadas, desde, hasta, hoy }) {
-  // primera entrada por empleado y día México: Map<empleado_id, Map<fecha, Date>>
-  const entradas = new Map();
-  // fechas México de las checadas con hora dudosa: Map<empleado_id, fecha[]>
-  const dudosas = new Map();
-  for (const c of checadas) {
-    const ts = new Date(c.timestamp);
-    const fecha = fechaMx(ts);
-    if (c.hora_dudosa) {
-      if (!dudosas.has(c.empleado_id)) dudosas.set(c.empleado_id, []);
-      dudosas.get(c.empleado_id).push(fecha);
-    }
-    if (!TIPOS_ENTRADA.has(c.tipo)) continue;
-    if (!entradas.has(c.empleado_id)) entradas.set(c.empleado_id, new Map());
-    const porDia = entradas.get(c.empleado_id);
-    if (!porDia.has(fecha) || ts < porDia.get(fecha)) porDia.set(fecha, ts);
-  }
-
+  const { entradas, dudosas } = agruparChecadas(checadas);
   const rango = diasDelRango(desde, hasta, hoy);
   const fin = rango.length ? rango[rango.length - 1].fecha : null;
 
@@ -64,4 +48,36 @@ function calcularAsistencia({ empleados, checadas, desde, hasta, hoy }) {
   });
 }
 
-module.exports = { calcularAsistencia, TOLERANCIA_RETARDO_MIN };
+// Prenómina DYH de NOMIPAQ: por empleado, las fechas (laborables, hasta hoy) con entrada → 'TRAB'.
+// Mismo criterio que dias_trabajados de calcularAsistencia. Devuelve Map<empleado_id, Set<fecha>>.
+function diasTrabajados({ empleados, checadas, desde, hasta, hoy }) {
+  const { entradas } = agruparChecadas(checadas);
+  const rango = diasDelRango(desde, hasta, hoy);
+  return new Map(empleados.map((e) => {
+    const laborables = new Set(e.dias || []);
+    const porDia = entradas.get(e.id) || new Map();
+    return [e.id, new Set(rango.filter((d) => laborables.has(d.iso) && porDia.has(d.fecha)).map((d) => d.fecha))];
+  }));
+}
+
+function agruparChecadas(checadas) {
+  // primera entrada por empleado y día México: Map<empleado_id, Map<fecha, Date>>
+  const entradas = new Map();
+  // fechas México de las checadas con hora dudosa: Map<empleado_id, fecha[]>
+  const dudosas = new Map();
+  for (const c of checadas) {
+    const ts = new Date(c.timestamp);
+    const fecha = fechaMx(ts);
+    if (c.hora_dudosa) {
+      if (!dudosas.has(c.empleado_id)) dudosas.set(c.empleado_id, []);
+      dudosas.get(c.empleado_id).push(fecha);
+    }
+    if (!TIPOS_ENTRADA.has(c.tipo)) continue;
+    if (!entradas.has(c.empleado_id)) entradas.set(c.empleado_id, new Map());
+    const porDia = entradas.get(c.empleado_id);
+    if (!porDia.has(fecha) || ts < porDia.get(fecha)) porDia.set(fecha, ts);
+  }
+  return { entradas, dudosas };
+}
+
+module.exports = { calcularAsistencia, diasTrabajados, TOLERANCIA_RETARDO_MIN };

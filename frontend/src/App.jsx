@@ -13,11 +13,14 @@ import CultureElementDetailPage from './pages/CultureElementDetailPage';
 import AvisosPage from './pages/AvisosPage';
 import ReporteAsistenciaPage from './pages/ReporteAsistenciaPage';
 import LoginPage from './pages/LoginPage';
+import UsuariosPage from './pages/UsuariosPage';
+import { sesion } from './api/usuarios';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function Layout() {
   const navigate = useNavigate();
   const nombre = localStorage.getItem('nombre');
+  const esAdmin = sesion().role === 'admin';
 
   function logout() {
     localStorage.removeItem('token');
@@ -56,6 +59,11 @@ function Layout() {
           <NavLink to="/cultura" className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>
             Cultura
           </NavLink>
+          {esAdmin && (
+            <NavLink to="/usuarios" className={({ isActive }) => isActive ? 'text-blue-700 font-medium text-sm' : 'text-gray-600 hover:text-blue-700 text-sm'}>
+              Usuarios
+            </NavLink>
+          )}
           <span className="text-sm text-gray-500">{nombre}</span>
           <button onClick={logout} className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded px-2 py-1">
             Cerrar sesión
@@ -75,6 +83,7 @@ function Layout() {
           <Route path="/salidas/:id" element={<SalidaDetailPage />} />
           <Route path="/avisos" element={<AvisosPage />} />
           <Route path="/reportes/asistencia" element={<ReporteAsistenciaPage />} />
+          {esAdmin && <Route path="/usuarios" element={<UsuariosPage />} />}
           <Route path="/cultura" element={<CulturePage />} />
           <Route path="/cultura/:culturaId" element={<CultureElementDetailPage />} />
         </Routes>

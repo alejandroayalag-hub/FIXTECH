@@ -42,6 +42,7 @@ app.use('/api/documentosSalida', authMiddleware, require('./routes/documentosSal
 app.use('/api/culturas', authMiddleware, require('./routes/culturas'));
 app.use('/api/avisos', authMiddleware, require('./routes/avisos'));
 app.use('/api/reportes', authMiddleware, require('./routes/reportes'));
+app.use('/api/usuarios', authMiddleware, require('./routes/usuarios'));
 
 app.use(errorHandler);
 
